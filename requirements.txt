@@ -1,0 +1,21 @@
+# Ensemble pipeline runtime dependencies.
+#
+# The conda environment at /home/luizlima/miniconda3/envs/ensemble-method
+# already provides these; this file pins the direct dependencies of the
+# pipeline so the requirements are auditable and reproducible.
+
+# Inference backends (installed editable from sibling repos):
+#   rfdetr             editable install of RFDETR/
+#   ultralytics        editable install of YOLO_model/
+# DEIMv2 is consumed as a source tree (sys.path injection) rather than via pip.
+
+ensemble-boxes==1.0.9
+pycocotools==2.0.11
+supervision==0.27.0.post1
+numpy>=1.26
+pandas>=2.0
+pillow>=10.0
+PyYAML>=6.0
+torch>=2.2,<3.0
+torchvision>=0.17
+tqdm>=4.66
