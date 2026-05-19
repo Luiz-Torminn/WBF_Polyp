@@ -1,0 +1,28 @@
+.outputs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local model repositories are consumed as editable/local dependencies.
+DEIMv2/
+RFDETR/
+YOLO_model/
+
+# Large local checkpoints are required for execution but should not be committed.
+pretrained_weights/
+
+# Local agent/runtime artifacts.
+.codex
+.work_trees/
+
+# Common build, notebook, and packaging artifacts.
+.ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
+
+\.outputs*
+\.claude*
+docs/
