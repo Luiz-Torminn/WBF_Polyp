@@ -8,13 +8,16 @@ the standalone YOLO eval — this adapter only powers the unified pipeline.
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
 import numpy as np
 
-from ensemble.adapters.base import Prediction
+from ensemble.adapters.base import Prediction, log_batch_predictions
 from ensemble.data import ImageRecord
+
+logger = logging.getLogger("ensemble.adapters.yolo")
 
 
 _YOLO_PATH_INJECTED = False
@@ -57,6 +60,7 @@ class YOLOAdapter:
         self._yolo_dir = Path(yolo_dir) if yolo_dir is not None else self._weights_path.parent
         self._model = None
         self._device: str = "cpu"
+        self._first_batch_logged = False
 
     def load(self, device: str) -> None:
         if self._model is not None:
@@ -70,6 +74,15 @@ class YOLOAdapter:
         self._model = YOLO(str(self._weights_path))
         # Warm-up to materialize the model on the target device.
         self._model.to(device)
+        self._first_batch_logged = False
+        logger.debug(
+            "loaded weights=%s device=%s imgsz=%d conf=%.4f iou=%.4f",
+            self._weights_path,
+            device,
+            self._imgsz,
+            self._predict_threshold,
+            self._iou_threshold,
+        )
 
     def infer_batch(self, batch: list[ImageRecord]) -> list[Prediction]:
         if self._model is None:
@@ -102,6 +115,13 @@ class YOLOAdapter:
                     class_ids=class_ids,
                 )
             )
+
+        log_batch_predictions(
+            "yolo",
+            predictions,
+            include_samples=not self._first_batch_logged,
+        )
+        self._first_batch_logged = True
         return predictions
 
     def unload(self) -> None:

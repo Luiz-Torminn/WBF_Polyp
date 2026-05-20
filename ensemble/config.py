@@ -23,6 +23,33 @@ def _has_model_dirs(candidate: Path) -> bool:
     return all((candidate / name).is_dir() for name in _REQUIRED_MODEL_DIRS)
 
 
+def _read_env_file(path: Path) -> dict[str, str]:
+    """Tiny KEY=VALUE parser for the project-local ``.env`` file.
+
+    Avoids a hard dependency on ``python-dotenv``; the file is currently a
+    single line (``LOG_LEVEL=DEBUG``) so a full library is overkill.
+    """
+    env: dict[str, str] = {}
+    if not path.is_file():
+        return env
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        env[key.strip()] = value.strip().strip("'\"")
+    return env
+
+
+_ENV_VARS: dict[str, str] = _read_env_file(_PROJECT_ROOT / ".env")
+
+
+def _resolve_log_level() -> str:
+    """Process env wins over .env; default INFO matches prior behavior."""
+    raw = os.environ.get("LOG_LEVEL") or _ENV_VARS.get("LOG_LEVEL") or "INFO"
+    return str(raw).upper()
+
+
 def find_repo_root() -> Path:
     """Locate the directory that contains DEIMv2/, RFDETR/, YOLO_model/.
 
@@ -82,19 +109,29 @@ DEFAULT_OUTPUT_DIR: Path = _PROJECT_ROOT / ".outputs"
 # filters boxes inside the fusion call.
 DEFAULT_PREDICT_THRESHOLD: float = 0.001
 DEFAULT_WBF_IOU: float = 0.5
-DEFAULT_WBF_SKIP_BOX_THR: float = 0.0001
+DEFAULT_WBF_SKIP_BOX_THR: float = 0.25
+
+# Ultralytics treats `iou` as the IoU ABOVE which a same-class box is
+# suppressed by NMS. To minimize NMS interference before WBF (which handles
+# dedup itself), the ensemble path defaults to a high value so most YOLO
+# candidates survive. The literal Ultralytics default is 0.7; override with
+# `--yolo-iou` to reproduce the standalone YOLO_model/main.py behavior.
+DEFAULT_YOLO_IOU_THRESHOLD: float = 0.99
 
 DEFAULT_DEVICE: str = "cuda:0"
 DEFAULT_BATCH_SIZE: int = 8
 DEFAULT_VISUALIZATION_COUNT: int = 8
+
+# Resolved at import time from .env (LOG_LEVEL=...) or the process env.
+DEFAULT_LOG_LEVEL: str = _resolve_log_level()
 
 
 # Canonical display names used in the CSV ("Modelo" column) and in
 # log/output artifact filenames.
 @dataclass(frozen=True)
 class ModelSpec:
-    key: str               # filesystem/CLI safe (e.g. 'rfdetr')
-    display_name: str      # CSV-facing label (e.g. 'RFDETR nano')
+    key: str  # filesystem/CLI safe (e.g. 'rfdetr')
+    display_name: str  # CSV-facing label (e.g. 'RFDETR nano')
 
 
 MODEL_SPECS: tuple[ModelSpec, ...] = (
@@ -127,6 +164,8 @@ class RunConfig:
     deimv2_weights: Path
     deimv2_config: Path
     deimv2_dir: Path
+    yolo_iou_threshold: float
+    log_level: str
     extra: dict = field(default_factory=dict)
 
     @property

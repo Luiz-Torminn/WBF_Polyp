@@ -15,6 +15,7 @@ otherwise fall back to the ``model`` state dict.
 
 from __future__ import annotations
 
+import logging
 import re
 import sys
 import tempfile
@@ -23,8 +24,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from ensemble.adapters.base import Prediction
+from ensemble.adapters.base import Prediction, log_batch_predictions
 from ensemble.data import ImageRecord
+
+logger = logging.getLogger("ensemble.adapters.deimv2")
 
 
 _DEIMV2_PATH_INJECTED = False
@@ -140,6 +143,7 @@ class DEIMv2Adapter:
         self._model = None
         self._postprocessor = None
         self._device = "cpu"
+        self._first_batch_logged = False
 
     def load(self, device: str) -> None:
         if self._model is not None:
@@ -190,6 +194,14 @@ class DEIMv2Adapter:
         self._model = model
         self._postprocessor = postprocessor
         self._device = device
+        self._first_batch_logged = False
+        logger.debug(
+            "loaded weights=%s device=%s input_size=%d score_threshold=%.4f",
+            self._weights_path,
+            device,
+            self._input_size,
+            self._score_threshold,
+        )
 
     def infer_batch(self, batch: list[ImageRecord]) -> list[Prediction]:
         if self._model is None or self._postprocessor is None:
@@ -248,6 +260,13 @@ class DEIMv2Adapter:
                     class_ids=labels,
                 )
             )
+
+        log_batch_predictions(
+            "deimv2",
+            predictions,
+            include_samples=not self._first_batch_logged,
+        )
+        self._first_batch_logged = True
         return predictions
 
     def unload(self) -> None:

@@ -10,11 +10,13 @@ from ensemble.config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_DIR,
     DEFAULT_DEVICE,
+    DEFAULT_LOG_LEVEL,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_PREDICT_THRESHOLD,
     DEFAULT_VISUALIZATION_COUNT,
     DEFAULT_WBF_IOU,
     DEFAULT_WBF_SKIP_BOX_THR,
+    DEFAULT_YOLO_IOU_THRESHOLD,
     DEIMV2_CONFIG,
     DEIMV2_DIR,
     DEIMV2_WEIGHTS,
@@ -46,6 +48,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--wbf-iou", type=float, default=DEFAULT_WBF_IOU)
     parser.add_argument("--wbf-skip-box", type=float, default=DEFAULT_WBF_SKIP_BOX_THR)
+    parser.add_argument(
+        "--yolo-iou",
+        type=float,
+        default=DEFAULT_YOLO_IOU_THRESHOLD,
+        help=(
+            "IoU threshold passed to Ultralytics NMS during the ensemble's YOLO "
+            "inference. High value (default %(default)s) = looser NMS, more "
+            "candidates survive into WBF. Set to 0.7 to match Ultralytics' "
+            "stock default; lower values are MORE aggressive NMS, not less."
+        ),
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default=DEFAULT_LOG_LEVEL,
+        help=(
+            "Logging verbosity (DEBUG/INFO/WARNING/ERROR). Resolved from the "
+            "process env, then the project .env file, then this default."
+        ),
+    )
     parser.add_argument(
         "--weights",
         type=float,
@@ -110,6 +132,8 @@ def parse_run_config(argv: list[str] | None = None) -> RunConfig:
         deimv2_weights=args.deimv2_weights,
         deimv2_config=args.deimv2_config,
         deimv2_dir=args.deimv2_dir,
+        yolo_iou_threshold=args.yolo_iou,
+        log_level=str(args.log_level).upper(),
     )
 
 

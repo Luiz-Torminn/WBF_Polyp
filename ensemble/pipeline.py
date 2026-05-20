@@ -33,7 +33,11 @@ from ensemble.metrics import (
     predictions_to_coco_results,
     write_coco_results_json,
 )
-from ensemble.visualize import select_visualization_records, write_overlays
+from ensemble.visualize import (
+    select_visualization_records,
+    write_combined_overlay,
+    write_overlays,
+)
 
 logger = logging.getLogger("ensemble.pipeline")
 
@@ -56,6 +60,7 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
         return YOLOAdapter(
             weights_path=run.yolo_weights,
             predict_threshold=run.predict_threshold,
+            iou_threshold=run.yolo_iou_threshold,
             yolo_dir=run.yolo_weights.parent,
         )
     if model_key == "deimv2":
@@ -68,7 +73,9 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
     raise ValueError(f"Unknown model key: {model_key!r}")
 
 
-def _run_inference(adapter: Adapter, bundle: CocoBundle, batch_size: int) -> dict[int, Prediction]:
+def _run_inference(
+    adapter: Adapter, bundle: CocoBundle, batch_size: int
+) -> dict[int, Prediction]:
     predictions: dict[int, Prediction] = {}
     for batch in tqdm(
         list(iter_batches(bundle.image_records, batch_size)),
@@ -80,7 +87,9 @@ def _run_inference(adapter: Adapter, bundle: CocoBundle, batch_size: int) -> dic
     return predictions
 
 
-def _serialize_run_config(run: RunConfig, bundle: CocoBundle, output_path: Path) -> None:
+def _serialize_run_config(
+    run: RunConfig, bundle: CocoBundle, output_path: Path
+) -> None:
     snapshot = {
         "dataset_dir": str(run.dataset_dir),
         "annotations_path": str(run.annotations_path),
@@ -92,6 +101,8 @@ def _serialize_run_config(run: RunConfig, bundle: CocoBundle, output_path: Path)
         "wbf_iou": run.wbf_iou,
         "wbf_skip_box_thr": run.wbf_skip_box_thr,
         "wbf_weights": list(run.wbf_weights),
+        "yolo_iou_threshold": run.yolo_iou_threshold,
+        "log_level": run.log_level,
         "skip_models": list(run.skip_models),
         "save_visualizations": run.save_visualizations,
         "visualization_count": run.visualization_count,
@@ -113,15 +124,35 @@ def _setup_logging(run: RunConfig) -> Path:
     run.logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = run.logs_dir / "pipeline.log"
 
+    # ``getLevelName`` of an unknown string returns "Level <name>" rather than
+    # raising; guard against that so a typo in LOG_LEVEL falls back to INFO
+    # and surfaces a warning instead of silently disabling logging.
+    level_value = logging.getLevelName(run.log_level)
+    if not isinstance(level_value, int):
+        logger.warning("Unknown log level %r, falling back to INFO", run.log_level)
+        level_value = logging.INFO
+
     root = logging.getLogger("ensemble")
-    root.setLevel(logging.INFO)
-    if not any(isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path) for h in root.handlers):
+    root.setLevel(level_value)
+    if not any(
+        isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path)
+        for h in root.handlers
+    ):
         file_handler = logging.FileHandler(log_path)
-        file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        file_handler.setLevel(level_value)
         root.addHandler(file_handler)
-    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in root.handlers):
+    if not any(
+        isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        for h in root.handlers
+    ):
         stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(logging.Formatter("[%(levelname)s] %(name)s: %(message)s"))
+        stream_handler.setFormatter(
+            logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
+        )
+        stream_handler.setLevel(level_value)
         root.addHandler(stream_handler)
 
     return log_path
@@ -159,19 +190,23 @@ def run_pipeline(run: RunConfig) -> Path:
         finally:
             adapter.unload()
 
-        coco_results = predictions_to_coco_results(predictions, bundle.class_idx_to_cat_id)
+        coco_results = predictions_to_coco_results(
+            predictions, bundle.class_idx_to_cat_id
+        )
         coco_path = run.predictions_dir / f"predictions_{spec.key}.json"
         write_coco_results_json(coco_results, coco_path)
         logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
 
         metrics = evaluate(predictions, bundle)
         logger.info(
-            "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
+            "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f mAR50=%.4f mAR50-95=%.4f (%.1fs)",
             spec.display_name,
             metrics.precision,
             metrics.recall,
             metrics.map50,
             metrics.map50_95,
+            metrics.mar50,
+            metrics.mar50_95,
             time.perf_counter() - start,
         )
 
@@ -221,7 +256,14 @@ def _run_ensemble(
             len(active_specs),
         )
         empty_predictions: dict[int, Prediction] = {}
-        empty_metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
+        empty_metrics = EvalResult(
+            precision=0.0,
+            recall=0.0,
+            map50=0.0,
+            map50_95=0.0,
+            mar50=0.0,
+            mar50_95=0.0,
+        )
         empty_path = run.predictions_dir / "predictions_ensemble.json"
         write_coco_results_json([], empty_path)
         return empty_metrics, empty_predictions, empty_path
@@ -256,19 +298,25 @@ def _run_ensemble(
             skip_box_thr=run.wbf_skip_box_thr,
         )
 
-    coco_results = predictions_to_coco_results(ensemble_predictions, bundle.class_idx_to_cat_id)
+    coco_results = predictions_to_coco_results(
+        ensemble_predictions, bundle.class_idx_to_cat_id
+    )
     ensemble_path = run.predictions_dir / "predictions_ensemble.json"
     write_coco_results_json(coco_results, ensemble_path)
-    logger.info("Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path)
+    logger.info(
+        "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
+    )
 
     ensemble_metrics = evaluate(ensemble_predictions, bundle)
     logger.info(
-        "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
+        "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f mAR50=%.4f mAR50-95=%.4f (%.1fs)",
         ENSEMBLE_DISPLAY_NAME,
         ensemble_metrics.precision,
         ensemble_metrics.recall,
         ensemble_metrics.map50,
         ensemble_metrics.map50_95,
+        ensemble_metrics.mar50,
+        ensemble_metrics.mar50_95,
         time.perf_counter() - start,
     )
     return ensemble_metrics, ensemble_predictions, ensemble_path
@@ -284,7 +332,17 @@ def _write_summary_csv(
     csv_path = run.run_dir / "summary.csv"
     with open(csv_path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["Modelo", "Precisão", "Recall", "MAP 50", "MAP 50-95"])
+        writer.writerow(
+            [
+                "Modelo",
+                "Precisão",
+                "Recall",
+                "MAP 50",
+                "MAP 50-95",
+                # "MAR 50",
+                # "MAR 50-95",
+            ]
+        )
         for spec in active_specs:
             metrics = model_results[spec.key].metrics
             writer.writerow(
@@ -294,6 +352,8 @@ def _write_summary_csv(
                     f"{metrics.recall:.4f}",
                     f"{metrics.map50:.4f}",
                     f"{metrics.map50_95:.4f}",
+                    # f"{metrics.mar50:.4f}",
+                    # f"{metrics.mar50_95:.4f}",
                 ]
             )
         writer.writerow(
@@ -303,6 +363,8 @@ def _write_summary_csv(
                 f"{ensemble_metrics.recall:.4f}",
                 f"{ensemble_metrics.map50:.4f}",
                 f"{ensemble_metrics.map50_95:.4f}",
+                # f"{ensemble_metrics.mar50:.4f}",
+                # f"{ensemble_metrics.mar50_95:.4f}",
             ]
         )
     return csv_path
@@ -335,6 +397,12 @@ def _write_visualizations(
             record.image_id, Prediction.empty(record.image_id)
         )
         write_overlays(
+            record=record,
+            predictions=per_model,
+            class_names=bundle.category_names,
+            output_dir=run.visualizations_dir,
+        )
+        write_combined_overlay(
             record=record,
             predictions=per_model,
             class_names=bundle.category_names,

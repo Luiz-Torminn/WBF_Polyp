@@ -1,3 +1,5 @@
+\.env*
+
 # Project outputs (results CSVs, predictions, visualizations).
 .outputs/
 .outputs*

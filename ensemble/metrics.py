@@ -37,6 +37,16 @@ class EvalResult:
     recall: float
     map50: float
     map50_95: float
+    # ``recall`` above is the best-F1 operating point on COCO's precision[T,R,K,A,M]
+    # matrix. Because R is the fixed 101-point recall grid
+    # (``coco_eval.params.recThrs`` = [0.00, 0.01, ..., 1.00]), ``recall`` is by
+    # construction always a multiple of 0.01 — that is the source of the round
+    # numbers in the CSV. The mAR fields below are NOT quantized to that grid:
+    # mAR@0.50 is the mean (over classes) of recall at IoU=0.50; mAR@[0.50:0.95]
+    # is ``coco_eval.stats[8]``, i.e. the standard COCO mean Average Recall at
+    # maxDets=100, area=all.
+    mar50: float
+    mar50_95: float
 
 
 def predictions_to_coco_results(
@@ -121,19 +131,49 @@ def _precision_recall_at_best_f1(coco_eval: COCOeval) -> tuple[float, float]:
     return float(mean_precision[best_idx]), float(recall_values[best_idx])
 
 
+def _mean_average_recall_50(coco_eval: COCOeval) -> float:
+    """mAR at IoU=0.50, maxDets=largest, area=all, averaged over classes.
+
+    ``coco_eval.eval['recall']`` has shape ``(T, K, A, M)`` (no R dimension —
+    unlike precision, recall is per IoU threshold). We slice IoU index 0,
+    area index 0, the largest max-detections, and average over classes.
+    Unreachable bins are marked with -1 and masked out before averaging.
+    """
+    recall_array = coco_eval.eval.get("recall")
+    if recall_array is None or recall_array.size == 0:
+        return 0.0
+    iou_idx = 0
+    area_idx = 0
+    maxdet_idx = recall_array.shape[-1] - 1
+    recall_slice = recall_array[iou_idx, :, area_idx, maxdet_idx]
+    valid = recall_slice > -1
+    if not valid.any():
+        return 0.0
+    return float(recall_slice[valid].mean())
+
+
 def evaluate(
     predictions: dict[int, Prediction],
     bundle: CocoBundle,
 ) -> EvalResult:
-    """Compute Precisão / Recall / mAP50 / mAP50-95 for a single model."""
+    """Compute Precisão / Recall / mAP50 / mAP50-95 / mAR50 / mAR50-95 for a single model."""
     coco_results = predictions_to_coco_results(predictions, bundle.class_idx_to_cat_id)
 
+    empty = EvalResult(
+        precision=0.0,
+        recall=0.0,
+        map50=0.0,
+        map50_95=0.0,
+        mar50=0.0,
+        mar50_95=0.0,
+    )
+
     if not coco_results:
-        return EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
+        return empty
 
     coco_eval = _build_coco_eval(bundle, coco_results)
     if coco_eval is None:
-        return EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
+        return empty
 
     with contextlib.redirect_stdout(io.StringIO()):
         coco_eval.summarize()
@@ -141,9 +181,19 @@ def evaluate(
     stats = coco_eval.stats
     map50_95 = float(stats[0])
     map50 = float(stats[1])
+    # stats[8] is mAR @ maxDets=100, area=all, averaged over IoU 0.50:0.95.
+    mar50_95 = float(stats[8])
+    mar50 = _mean_average_recall_50(coco_eval)
     precision, recall = _precision_recall_at_best_f1(coco_eval)
 
-    return EvalResult(precision=precision, recall=recall, map50=map50, map50_95=map50_95)
+    return EvalResult(
+        precision=precision,
+        recall=recall,
+        map50=map50,
+        map50_95=map50_95,
+        mar50=mar50,
+        mar50_95=mar50_95,
+    )
 
 
 def write_coco_results_json(coco_results: list[dict], path: Path) -> None:
