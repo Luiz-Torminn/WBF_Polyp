@@ -18,6 +18,39 @@ ENSEMBLE,x,x,x,x
 
 My current PC has an RTX 5080 with 16 GB of VRAM, so be aware of this when designing the pipeline, loading models, selecting batch size, and handling inference execution.
 
+## Pretrained Weights Layout
+
+Each model's pretrained checkpoint lives **inside its upstream repository directory**, not in a shared root `pretrained_weights/` folder. The expected layout is:
+
+- `RFDETR/rfdetr_nano.pth`
+- `YOLO_model/yolo12n_ZScan2_ZScanKCLG_normais-80_10_10.pt`
+- `DEIMv2/deimv2_pico.pth`
+
+All ensemble adapters must load weights from these locations by default. The defaults are exposed as CLI flags so they can be overridden per run, but the baseline pipeline must work out of the box against the layout above.
+
+## Dataset Layout
+
+The COCO-format test split is the single source of truth for evaluation:
+
+- Images: `/run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/datasets/folders/COCO/ZScan2_ZScanKCLG_normais/test/`
+- Annotations: same folder, file `_annotations.coco.json`
+- Single category: `polyp` (id=0)
+
+The YOLO native eval (`YOLO_model/data.yaml`) points at the parallel YOLO-format folder under `/run/.../folders/ZScan2_ZScanKCLG_normais/test/`; the ensemble pipeline uses only the COCO folder so all three models see the same images by image_id.
+
+## Agent Workflow Rules
+
+Never work directly on the `main` branch. All implementation, refactoring, or experimentation must happen in a dedicated git worktree branched off `main_working`.
+
+- Worktrees live under: `/run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/working_trees/`
+- Branch naming: `feat/<short-topic>` (e.g. `feat/ensemble-wbf-pipeline`).
+- Commit incrementally: one commit per logical subtask. Commit messages must be short, direct titles with a concise description of what was implemented.
+- The originating branch (`main_working`) must stay untouched until the worktree branch is reviewed and merged.
+
+When the work is complete, push the worktree branch and open a pull request via the GitHub CLI over SSH. The PR target is `main_working` (the originating branch). A separate PR from `main_working` → `main` is opened once the work is reviewed.
+
+When writing PR bodies, prefer plain text. The shell sometimes interprets markdown backticks inside the PR body and corrupts the rendered description, so avoid code fences in the body or escape them carefully. Pass the body via heredoc when calling `gh pr create`.
+
 GENERAL SNIPPETS
 
 ## Context Fetching and Implementation Approach
@@ -143,41 +176,6 @@ If the repository does not already contain a formal pytest suite for the relevan
 
 ---
 
-Important project paths:
-
-- Project root: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method
-- DEIMv2: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/DEIMv2
-- YOLO: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/YOLO_model
-- RFDETR: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/RFDETR
-- dataset (COCO format): /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/datasets/folders/COCO
-- dataset (YOLO format): /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/datasets/folders/ZScan2_ZScanKCLG_normais
-
-Pretrained weights:
-
-- DEIMv2 pico pretrained weights: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/pretrained_weights/deimv2_pico.pth
-- RFDETR nano pretrained weights: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/pretrained_weights/rfdetr_nano.pth
-- YOLOv12 nano pretrained weights: /run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/pretrained_weights/yolo12n_ZScan2_ZScanKCLG_normais-80_10_10.pt
-
----
-
-## For _maestro_ agents
-
-Never work directly on the main branch. Always create a new Git worktree or isolated branch for any implementation or change, ensuring all development occurs outside of main. Each task or feature must be developed in its own dedicated worktree or branch, keeping changes well organized and isolated. Commit changes incrementally and logically per task or subtask, maintaining a clean and structured commit history.
-
-The dedicated worktree directory is located at:
-
-/run/media/luizlima/ED_NVME/Desktop/Coding/ZSCAN/code/ensemble-method/.work_trees
-
-Create the required worktrees and perform commits using clear, objective titles with concise descriptions of what was implemented at each step. Avoid overly detailed explanations in commit messages.
-
-At the end of the process, open a pull request targeting the original branch so the full implementation can be reviewed and pushed.
-
-The pull request must be directed to the same originating branch for the project. Use GitHub CLI via SSH for this.
-
-Be aware that when creating the PR, the shell may interpret markdown backticks inside the PR body. Prefer plain text in the PR description so it is created cleanly.
-
----
-
 ## Documentation write/update
 
 After completing any significant task, evaluate whether it is necessary to create or update a project documentation file describing how the ensemble pipeline works in practice. If such a document is created, prefer a name such as `ENSEMBLE_METHOD_PRD.md` or another clear operational name already consistent with the repository.
@@ -204,3 +202,16 @@ The document must also clearly distinguish:
 - what behavior is inherited from the individual model repositories
 - which assumptions depend on external repository contracts or pretrained model behavior
 - where future changes must be made if model inference APIs differ
+
+The PRD must explicitly describe the unified evaluator (where and how it is applied for each model and for the ensemble row), the prediction normalization strategy used as input to WBF, and the differences between fusion thresholds and evaluation thresholds. This is required because the standalone metrics in the CSV summary come from the project's unified evaluator, not from each model's native evaluator — the PRD must make that distinction obvious to future maintainers.
+
+---
+
+## Evaluation Threshold Semantics
+
+The pipeline keeps two distinct thresholds, and they must not be conflated:
+
+- **Predict / score threshold** (low, e.g. `0.001`): applied during per-model inference so the full precision-recall curve is preserved for mAP computation. This matches what `RFDETR/main.py` (`PREDICT_THRESHOLD = 0.001`) and `YOLO_model/main.py` (`conf=0.001`) already use.
+- **Fusion `skip_box_thr`** (e.g. `0.0001`): a WBF-internal filter applied inside `weighted_boxes_fusion()` before fusion. It is independent of the inference threshold and is exposed as a CLI flag.
+
+Standalone metrics in the final CSV are computed by the project's unified evaluator (pycocotools COCOeval + a precision/recall extractor at the best-F1 score point on the IoU=0.5 PR curve). The native evaluators in each upstream repository (`RFDETR/main.py`, `YOLO_model/main.py`, `DEIMv2/train.py --test-only`) remain runnable from their own directories for reference but are not the source of the CSV numbers.
