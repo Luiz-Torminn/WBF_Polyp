@@ -199,14 +199,12 @@ def run_pipeline(run: RunConfig) -> Path:
 
         metrics = evaluate(predictions, bundle)
         logger.info(
-            "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f mAR50=%.4f mAR50-95=%.4f (%.1fs)",
+            "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
             spec.display_name,
             metrics.precision,
             metrics.recall,
             metrics.map50,
             metrics.map50_95,
-            metrics.mar50,
-            metrics.mar50_95,
             time.perf_counter() - start,
         )
 
@@ -256,14 +254,7 @@ def _run_ensemble(
             len(active_specs),
         )
         empty_predictions: dict[int, Prediction] = {}
-        empty_metrics = EvalResult(
-            precision=0.0,
-            recall=0.0,
-            map50=0.0,
-            map50_95=0.0,
-            mar50=0.0,
-            mar50_95=0.0,
-        )
+        empty_metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
         empty_path = run.predictions_dir / "predictions_ensemble.json"
         write_coco_results_json([], empty_path)
         return empty_metrics, empty_predictions, empty_path
@@ -309,14 +300,12 @@ def _run_ensemble(
 
     ensemble_metrics = evaluate(ensemble_predictions, bundle)
     logger.info(
-        "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f mAR50=%.4f mAR50-95=%.4f (%.1fs)",
+        "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
         ENSEMBLE_DISPLAY_NAME,
         ensemble_metrics.precision,
         ensemble_metrics.recall,
         ensemble_metrics.map50,
         ensemble_metrics.map50_95,
-        ensemble_metrics.mar50,
-        ensemble_metrics.mar50_95,
         time.perf_counter() - start,
     )
     return ensemble_metrics, ensemble_predictions, ensemble_path
@@ -332,17 +321,7 @@ def _write_summary_csv(
     csv_path = run.run_dir / "summary.csv"
     with open(csv_path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(
-            [
-                "Modelo",
-                "Precisão",
-                "Recall",
-                "MAP 50",
-                "MAP 50-95",
-                # "MAR 50",
-                # "MAR 50-95",
-            ]
-        )
+        writer.writerow(["Modelo", "Precisão", "Recall", "MAP 50", "MAP 50-95"])
         for spec in active_specs:
             metrics = model_results[spec.key].metrics
             writer.writerow(
@@ -352,8 +331,6 @@ def _write_summary_csv(
                     f"{metrics.recall:.4f}",
                     f"{metrics.map50:.4f}",
                     f"{metrics.map50_95:.4f}",
-                    # f"{metrics.mar50:.4f}",
-                    # f"{metrics.mar50_95:.4f}",
                 ]
             )
         writer.writerow(
@@ -363,8 +340,6 @@ def _write_summary_csv(
                 f"{ensemble_metrics.recall:.4f}",
                 f"{ensemble_metrics.map50:.4f}",
                 f"{ensemble_metrics.map50_95:.4f}",
-                # f"{ensemble_metrics.mar50:.4f}",
-                # f"{ensemble_metrics.mar50_95:.4f}",
             ]
         )
     return csv_path

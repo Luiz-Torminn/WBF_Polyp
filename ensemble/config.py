@@ -108,15 +108,15 @@ DEFAULT_OUTPUT_DIR: Path = _PROJECT_ROOT / ".outputs"
 # for mAP computation; the WBF skip threshold is independent and only
 # filters boxes inside the fusion call.
 DEFAULT_PREDICT_THRESHOLD: float = 0.001
-DEFAULT_WBF_IOU: float = 0.5
-DEFAULT_WBF_SKIP_BOX_THR: float = 0.25
+DEFAULT_WBF_IOU: float = 0.7
+DEFAULT_WBF_SKIP_BOX_THR: float = 0.5
 
 # Ultralytics treats `iou` as the IoU ABOVE which a same-class box is
 # suppressed by NMS. To minimize NMS interference before WBF (which handles
 # dedup itself), the ensemble path defaults to a high value so most YOLO
 # candidates survive. The literal Ultralytics default is 0.7; override with
 # `--yolo-iou` to reproduce the standalone YOLO_model/main.py behavior.
-DEFAULT_YOLO_IOU_THRESHOLD: float = 0.99
+DEFAULT_YOLO_IOU_THRESHOLD: float = 0.75
 
 DEFAULT_DEVICE: str = "cuda:0"
 DEFAULT_BATCH_SIZE: int = 8
