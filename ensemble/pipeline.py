@@ -114,6 +114,8 @@ def _serialize_run_config(
         "num_images": len(bundle.image_records),
         "num_classes": bundle.num_classes,
         "class_names": bundle.category_names,
+        "config_path": run.extra.get("config_path"),
+        "config_overrides": run.extra.get("config_overrides", []),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as handle:
@@ -163,6 +165,12 @@ def run_pipeline(run: RunConfig) -> Path:
     log_path = _setup_logging(run)
     logger.info("Run directory: %s", run.run_dir)
     logger.info("Log file: %s", log_path)
+
+    # Mirror the startup config banner into the log file for reproducibility.
+    banner = run.extra.get("config_banner")
+    if banner:
+        for line in banner.splitlines():
+            logger.info("%s", line)
 
     bundle = load_coco(run.annotations_path, run.dataset_dir)
     logger.info(

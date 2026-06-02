@@ -1,0 +1,11 @@
+# Conservative profile — higher precision, lower recall (fewer detections).
+# Tighter fusion: WBF only merges well-overlapping boxes and discards low-score
+# boxes before fusion; YOLO NMS is stricter so fewer raw candidates survive.
+#
+#     python main.py --config configs/conservative.yaml
+
+predict_threshold: 0.001
+wbf_iou: 0.7
+wbf_skip_box: 0.5
+yolo_iou: 0.75
+weights: [1.0, 1.0, 1.0]
