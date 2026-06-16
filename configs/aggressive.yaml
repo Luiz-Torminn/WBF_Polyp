@@ -1,11 +1,8 @@
 # Aggressive profile — higher recall, lower precision (more detections, more
-# false positives). Looser fusion: WBF merges on a lower IoU and keeps low-score
-# boxes; YOLO NMS is very loose so most raw candidates survive into WBF.
+# false positives)
 #
-#     python main.py --config configs/aggressive.yaml
-
 predict_threshold: 0.001
-wbf_iou: 0.5
+wbf_iou: 0.15
 wbf_skip_box: 0.1
 yolo_iou: 0.95
 weights: [1.0, 1.0, 1.0]

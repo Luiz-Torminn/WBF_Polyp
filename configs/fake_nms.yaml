@@ -1,0 +1,9 @@
+# --- Detection / fusion knobs (these define a "profile") ----------------------
+# predict_threshold: 0.001   # per-model inference score threshold (keep tiny so
+#                            # the full PR curve survives for mAP)
+wbf_iou: 0.7 # IoU above which WBF treats boxes as the same object
+wbf_skip_box: 0.5 # drop boxes below this score before fusion
+yolo_iou: 0.95 # Ultralytics NMS IoU for YOLO inference; HIGH = looser
+#                            # NMS, more candidates survive into WBF (0.7 = stock)
+weights: [1.0, 1.0, 1.0] # WBF per-model weights, order: RFDETR YOLO DEIMv2
+

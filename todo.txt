@@ -1,0 +1,14 @@
+[ OK ] Dois modelos distintos:
+  (1) - Mais conserverador, com maior precisão e menor recall
+  (2) - Mais agressivo, com menor precisão e maior recall (mais detecções, mas mais falsos positivos)
+
+[ OK ] Aplicar NMS nas deteccoes para evitar duplicatas --> Aplicar de forma indireta aumentando o valor do `DEFAULT_WBF_SKIP_BOX_THR` na config?
+
+
+[  ] Artigo - deteccao e tracking de objetos 
+  Sandro e Michel --> Continuidade artigo projeto passado
+  Luiz, Cleiver e Guilherme --> Artigo sobre detecção e tracking de objetos traduzido para uma linguagem e abordagem mais clinica/medica 
+
+[  ] Add conf_type="box_and_model_avg" in `ensemble/fusion.py:weighted_boxes_fusion()`
+
+[  ] Grid search para encontrar os melhores valores para os parametros nos diferentes perfis
