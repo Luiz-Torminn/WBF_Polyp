@@ -83,6 +83,7 @@ SPECS: tuple[FieldSpec, ...] = (
     FieldSpec("wbf_weights", "weights", _as_float_tuple),
     FieldSpec("skip_models", "skip_models", _as_str_tuple),
     FieldSpec("save_visualizations", "save_visualizations", _as_bool),
+    FieldSpec("dynamic_metrics", "dynamic_metrics", _as_bool),
     FieldSpec("visualization_count", "visualization_count", _as_int),
     FieldSpec("run_name", "run_name", _as_str),
     FieldSpec("rfdetr_weights", "rfdetr_weights", _as_path),
