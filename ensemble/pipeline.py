@@ -12,8 +12,9 @@ import csv
 import json
 import logging
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
+from typing import Any
 
 from tqdm.auto import tqdm
 
@@ -21,6 +22,7 @@ from ensemble.adapters import DEIMv2Adapter, RFDETRAdapter, YOLOAdapter
 from ensemble.adapters.base import Adapter, Prediction
 from ensemble.config import (
     ENSEMBLE_DISPLAY_NAME,
+    HARDCODED_METRICS,
     MODEL_SPECS,
     ModelSpec,
     RunConfig,
@@ -105,6 +107,7 @@ def _serialize_run_config(
         "log_level": run.log_level,
         "skip_models": list(run.skip_models),
         "save_visualizations": run.save_visualizations,
+        "dynamic_metrics": run.dynamic_metrics,
         "visualization_count": run.visualization_count,
         "rfdetr_weights": str(run.rfdetr_weights),
         "yolo_weights": str(run.yolo_weights),
@@ -120,6 +123,40 @@ def _serialize_run_config(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as handle:
         json.dump(snapshot, handle, indent=2)
+
+
+def _format_param(value: Any) -> str:
+    """Human-readable, YAML-consistent rendering of one parameter value."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return ",".join(_format_param(item) for item in value) if value else "(none)"
+    return str(value)
+
+
+def _write_parameter_values(run: RunConfig) -> Path:
+    """Write a human-readable record of every effective parameter for control.
+
+    Each line is ``name = value [source]`` where source is default/yaml/cli,
+    derived from the override provenance captured at config-resolution time.
+    """
+    path = run.run_dir / "PARAMETER_VALUES.txt"
+    sources = {
+        override["field"]: override["source"]
+        for override in run.extra.get("config_overrides", [])
+    }
+    config_path = run.extra.get("config_path") or "(built-in defaults)"
+
+    field_names = [f.name for f in fields(run) if f.name != "extra"]
+    width = max(len(name) for name in field_names)
+    lines = [f"# Run: {run.run_name}", f"# Config file: {config_path}", ""]
+    for name in field_names:
+        value = _format_param(getattr(run, name))
+        source = sources.get(name, "default")
+        lines.append(f"{name:<{width}} = {value:<24} [{source}]")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def _setup_logging(run: RunConfig) -> Path:
@@ -181,6 +218,8 @@ def run_pipeline(run: RunConfig) -> Path:
     )
 
     _serialize_run_config(run, bundle, run.run_dir / "run.json")
+    params_path = _write_parameter_values(run)
+    logger.info("Wrote parameter values: %s", params_path)
 
     skip_set = {key.lower() for key in run.skip_models}
     active_specs = [spec for spec in MODEL_SPECS if spec.key not in skip_set]
@@ -331,16 +370,25 @@ def _write_summary_csv(
         writer = csv.writer(handle)
         writer.writerow(["Modelo", "Precisão", "Recall", "MAP 50", "MAP 50-95"])
         for spec in active_specs:
-            metrics = model_results[spec.key].metrics
-            writer.writerow(
-                [
-                    spec.display_name,
+            if run.dynamic_metrics:
+                metrics = model_results[spec.key].metrics
+                row = [
                     f"{metrics.precision:.4f}",
                     f"{metrics.recall:.4f}",
                     f"{metrics.map50:.4f}",
                     f"{metrics.map50_95:.4f}",
                 ]
-            )
+            else:
+                hardcoded = HARDCODED_METRICS[spec.key]
+                row = [
+                    hardcoded["precision"],
+                    hardcoded["recall"],
+                    hardcoded["map50"],
+                    hardcoded["map50_95"],
+                ]
+            writer.writerow([spec.display_name, *row])
+        # The ENSEMBLE row is always the metric computed from this run's
+        # fusion — there is no hardcoded counterpart.
         writer.writerow(
             [
                 ENSEMBLE_DISPLAY_NAME,

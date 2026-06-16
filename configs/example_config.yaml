@@ -42,6 +42,8 @@
 # --- Standalone models / visualizations ---------------------------------------
 # skip_models: [yolo]               # skip standalone models (ensemble needs >= 2)
 # save_visualizations: true         # render per-image overlays
+# dynamic_metrics: true             # summary.csv model rows from this run; false =
+#                                   # published HARDCODED_METRICS (ENSEMBLE always live)
 # visualization_count: 8            # how many images to visualize
 
 # --- Weight / config paths (default to the in-repo layout) --------------------
