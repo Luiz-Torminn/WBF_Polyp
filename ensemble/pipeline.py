@@ -52,6 +52,21 @@ class ModelRunResult:
     coco_results_path: Path
 
 
+@dataclass
+class PipelineResult:
+    """What :func:`run_pipeline` hands back to its caller.
+
+    ``summary_path`` is the written ``summary.csv`` (the historical return
+    value); ``ensemble_metrics`` exposes the full-precision ENSEMBLE
+    :class:`EvalResult` so programmatic callers (e.g. the Optuna objective in
+    ``bayesian_optimization.py``) can read mAP without re-parsing the CSV,
+    which would quantize the value to 4 decimals.
+    """
+
+    summary_path: Path
+    ensemble_metrics: EvalResult
+
+
 def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
     if model_key == "rfdetr":
         return RFDETRAdapter(
@@ -197,7 +212,7 @@ def _setup_logging(run: RunConfig) -> Path:
     return log_path
 
 
-def run_pipeline(run: RunConfig) -> Path:
+def run_pipeline(run: RunConfig) -> PipelineResult:
     run.run_dir.mkdir(parents=True, exist_ok=True)
     log_path = _setup_logging(run)
     logger.info("Run directory: %s", run.run_dir)
@@ -285,7 +300,7 @@ def run_pipeline(run: RunConfig) -> Path:
             ensemble_predictions=ensemble_predictions,
         )
 
-    return summary_path
+    return PipelineResult(summary_path=summary_path, ensemble_metrics=ensemble_metrics)
 
 
 def _run_ensemble(

@@ -24,8 +24,8 @@ def main() -> int:
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    summary_path = run_pipeline(run)
-    print(f"summary: {summary_path}")
+    result = run_pipeline(run)
+    print(f"summary: {result.summary_path}")
     return 0
 
 
