@@ -21,7 +21,7 @@ torchvision>=0.17
 tqdm>=4.66
 
 # Hyperparameter search (bayesian_optimization.py). psycopg2-binary is the
-# host-side driver for the postgres study DB in docker-compose.optuna.yml.
+# host-side driver for the postgres study DB in docker-compose.yml.
 optuna>=3.6
 optuna-dashboard>=0.15
 psycopg2-binary>=2.9

@@ -21,10 +21,10 @@ stays a clean held-out set; rerun the winning config on test/ afterwards:
     python main.py --config configs/optuna_best.yaml \
         --dataset .../ZScan2_ZScanKCLG_normais/test
 
-Storage is the PostgreSQL instance from ``docker-compose.optuna.yml``. Bring it
+Storage is the PostgreSQL instance from ``docker-compose.yml``. Bring it
 up first so trials and the live dashboard share one database::
 
-    docker compose -f docker-compose.optuna.yml up -d   # db :5434, dashboard :8080
+    docker compose -f docker-compose.yml up -d   # db :5434, dashboard :8080
     python bayesian_optimization.py                     # writes trials to postgres
 
 Usage::
@@ -48,7 +48,7 @@ from ensemble.config import DEFAULT_DATASET_DIR, RunConfig
 from ensemble.pipeline import run_pipeline
 
 # --- Defaults ---------------------------------------------------------------
-# The DB URL targets the host-mapped port from docker-compose.optuna.yml. The
+# The DB URL targets the host-mapped port from docker-compose.yml. The
 # dashboard container reaches the same DB over the docker network (5432); the
 # host script must use the published port (5434).
 DEFAULT_STORAGE = "postgresql+psycopg2://postgres:postgres@localhost:5434/optuna_db"
