@@ -1,0 +1,31 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+#
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+
+# --- Vendored third-party model repositories (consumed as local deps) ---
+DEIMv2/
+RFDETR/
+YOLO_model/
+
+# --- Run artifacts: predictions, visualizations, logs, CSVs ---
+.outputs/
+.outputs*/
+
+# --- Local model checkpoints ---
+pretrained_weights/
+
+# --- Local agent/runtime artifacts ---
+.claude/
+.codex/
+.work_trees/
+.repo_root
+.env
+*.env
+
+# --- Caches ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/

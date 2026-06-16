@@ -1,0 +1,2814 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "wbf-ensemble-pipeline",
+    "languages": [
+      "python",
+      "yaml",
+      "markdown"
+    ],
+    "frameworks": [
+      "PyTorch",
+      "torchvision",
+      "ultralytics",
+      "ensemble-boxes",
+      "pycocotools",
+      "supervision",
+      "NumPy",
+      "pandas",
+      "PyYAML",
+      "tqdm"
+    ],
+    "description": "Weighted Box Fusion (WBF) ensemble pipeline that runs RFDETR Nano, YOLOv12 Nano, and DEIMv2 Pico on a single-class COCO polyp test split, fuses their per-image detections via ensemble-boxes WBF, and reports per-model and ensemble Precision/Recall/mAP to a CSV.",
+    "analyzedAt": "2026-06-16T16:29:17Z",
+    "gitCommitHash": "b3e4349ee503e2dab58e73870c980280b6cee651"
+  },
+  "nodes": [
+    {
+      "id": "file:ensemble/cli.py",
+      "type": "file",
+      "name": "cli.py",
+      "filePath": "ensemble/cli.py",
+      "summary": "Defines the command-line interface for the WBF ensemble pipeline, building the argparse parser and merging CLI flags, optional YAML config, and built-in defaults into a single RunConfig.",
+      "tags": [
+        "entry-point",
+        "cli",
+        "configuration",
+        "argparse",
+        "validation",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Layers three configuration sources (defaults < YAML < CLI) and prints a provenance banner of effective overrides."
+    },
+    {
+      "id": "function:ensemble/cli.py:build_parser",
+      "type": "function",
+      "name": "build_parser",
+      "filePath": "ensemble/cli.py",
+      "lineRange": [
+        81,
+        164
+      ],
+      "summary": "Constructs the argparse.ArgumentParser registering every tunable pipeline flag (dataset paths, thresholds, WBF weights, model weights, visualization options).",
+      "tags": [
+        "cli",
+        "argparse",
+        "configuration",
+        "factory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/cli.py:parse_run_config",
+      "type": "function",
+      "name": "parse_run_config",
+      "filePath": "ensemble/cli.py",
+      "lineRange": [
+        216,
+        254
+      ],
+      "summary": "Parses argv, loads any YAML config, resolves the defaults/YAML/CLI precedence chain, prints the override banner, and returns the assembled RunConfig with provenance recorded in extra.",
+      "tags": [
+        "cli",
+        "configuration",
+        "entry-point",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/cli.py:_default_field_values",
+      "type": "function",
+      "name": "_default_field_values",
+      "filePath": "ensemble/cli.py",
+      "lineRange": [
+        167,
+        190
+      ],
+      "summary": "Produces the dictionary of built-in default values for every RunConfig field, used as the lowest-precedence configuration layer.",
+      "tags": [
+        "configuration",
+        "utility",
+        "defaults"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/cli.py:_collect_cli_overrides",
+      "type": "function",
+      "name": "_collect_cli_overrides",
+      "filePath": "ensemble/cli.py",
+      "lineRange": [
+        193,
+        201
+      ],
+      "summary": "Gathers explicitly-provided CLI arguments into an override mapping, applying per-field transforms so they take top precedence over YAML and defaults.",
+      "tags": [
+        "configuration",
+        "cli",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/cli.py:_resolve_config_path",
+      "type": "function",
+      "name": "_resolve_config_path",
+      "filePath": "ensemble/cli.py",
+      "lineRange": [
+        204,
+        213
+      ],
+      "summary": "Resolves a raw config path argument to an existing file, expanding the user home and falling back to an alternate location when needed.",
+      "tags": [
+        "configuration",
+        "filesystem",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:ensemble/config.py",
+      "type": "file",
+      "name": "config.py",
+      "filePath": "ensemble/config.py",
+      "summary": "Declares the RunConfig and ModelSpec dataclasses describing a full pipeline run, plus repo-root discovery and .env reading helpers for locating datasets and weights.",
+      "tags": [
+        "configuration",
+        "data-model",
+        "type-definition",
+        "filesystem"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses dataclasses with computed path properties (annotations_path, run_dir, predictions_dir, etc.) derived from the configured output and dataset directories."
+    },
+    {
+      "id": "class:ensemble/config.py:RunConfig",
+      "type": "class",
+      "name": "RunConfig",
+      "filePath": "ensemble/config.py",
+      "lineRange": [
+        164,
+        207
+      ],
+      "summary": "Central dataclass holding every parameter of an ensemble run (dataset/output dirs, device, thresholds, WBF settings, model weights) with derived path properties for outputs.",
+      "tags": [
+        "data-model",
+        "configuration",
+        "type-definition"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:ensemble/config.py:ModelSpec",
+      "type": "class",
+      "name": "ModelSpec",
+      "filePath": "ensemble/config.py",
+      "lineRange": [
+        138,
+        140
+      ],
+      "summary": "Lightweight dataclass pairing a model key with its human-readable display name for the three ensemble detectors.",
+      "tags": [
+        "data-model",
+        "type-definition"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/config.py:find_repo_root",
+      "type": "function",
+      "name": "find_repo_root",
+      "filePath": "ensemble/config.py",
+      "lineRange": [
+        53,
+        82
+      ],
+      "summary": "Locates the repository root by walking parent directories for expected model folders, honoring a pointer file and an environment override, raising RuntimeError when none match.",
+      "tags": [
+        "filesystem",
+        "configuration",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/config.py:_read_env_file",
+      "type": "function",
+      "name": "_read_env_file",
+      "filePath": "ensemble/config.py",
+      "lineRange": [
+        26,
+        41
+      ],
+      "summary": "Parses a .env file into a key/value dict, skipping comments and blank lines and stripping surrounding quotes from values.",
+      "tags": [
+        "filesystem",
+        "configuration",
+        "utility",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:ensemble/config_file.py",
+      "type": "file",
+      "name": "config_file.py",
+      "filePath": "ensemble/config_file.py",
+      "summary": "Loads and validates YAML configuration files, coercing keys into typed RunConfig fields, resolving the defaults/YAML/CLI precedence chain, and rendering the effective-override banner.",
+      "tags": [
+        "configuration",
+        "serialization",
+        "validation",
+        "yaml",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses a FieldSpec registry with per-type coerce functions and difflib.get_close_matches to suggest corrections for unknown YAML keys."
+    },
+    {
+      "id": "function:ensemble/config_file.py:load_config_file",
+      "type": "function",
+      "name": "load_config_file",
+      "filePath": "ensemble/config_file.py",
+      "lineRange": [
+        100,
+        137
+      ],
+      "summary": "Reads a YAML config file, validates it is a mapping of known keys, and coerces each value to its RunConfig field type, raising ConfigError with suggestions on bad input.",
+      "tags": [
+        "configuration",
+        "yaml",
+        "validation",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/config_file.py:resolve",
+      "type": "function",
+      "name": "resolve",
+      "filePath": "ensemble/config_file.py",
+      "lineRange": [
+        156,
+        186
+      ],
+      "summary": "Merges default, YAML, and CLI override layers into the final field values and produces an ordered list of Override records tracking each non-default value's source.",
+      "tags": [
+        "configuration",
+        "validation",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/config_file.py:render_banner",
+      "type": "function",
+      "name": "render_banner",
+      "filePath": "ensemble/config_file.py",
+      "lineRange": [
+        200,
+        219
+      ],
+      "summary": "Formats a human-readable startup banner listing the active config file and each effective override with its source for run-time transparency.",
+      "tags": [
+        "configuration",
+        "logging",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:ensemble/config_file.py:Override",
+      "type": "class",
+      "name": "Override",
+      "filePath": "ensemble/config_file.py",
+      "lineRange": [
+        147,
+        153
+      ],
+      "summary": "Dataclass recording a single resolved override: the field name, YAML key, value, and the source layer (yaml or cli) it came from.",
+      "tags": [
+        "data-model",
+        "configuration",
+        "type-definition"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:ensemble/config_file.py:FieldSpec",
+      "type": "class",
+      "name": "FieldSpec",
+      "filePath": "ensemble/config_file.py",
+      "lineRange": [
+        64,
+        69
+      ],
+      "summary": "Dataclass binding a RunConfig field name to its YAML key and the coercion function used to convert raw YAML values.",
+      "tags": [
+        "data-model",
+        "configuration",
+        "type-definition"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "main.py",
+      "summary": "Top-level entry point that parses the run configuration from CLI/YAML and dispatches to run_pipeline, exiting with code 2 on configuration errors.",
+      "tags": [
+        "entry-point",
+        "cli",
+        "configuration",
+        "tested"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:main.py:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "main.py",
+      "lineRange": [
+        21,
+        29
+      ],
+      "summary": "Builds the RunConfig via parse_run_config and invokes run_pipeline, handling configuration errors by printing a message and exiting with status 2.",
+      "tags": [
+        "entry-point",
+        "cli",
+        "orchestration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_cli_config.py",
+      "type": "file",
+      "name": "test_cli_config.py",
+      "filePath": "tests/test_cli_config.py",
+      "summary": "Tests the CLI/YAML/default precedence behavior of parse_run_config, covering override application, flag precedence, provenance recording, unknown keys, and banner printing.",
+      "tags": [
+        "test",
+        "cli",
+        "configuration"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:tests/test_config_file.py",
+      "type": "file",
+      "name": "test_config_file.py",
+      "filePath": "tests/test_config_file.py",
+      "summary": "Tests YAML config loading, key coercion parity, error handling for unknown/malformed input, the precedence resolution logic, and override-banner rendering.",
+      "tags": [
+        "test",
+        "configuration",
+        "yaml",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:tests/test_main_config_error.py",
+      "type": "file",
+      "name": "test_main_config_error.py",
+      "filePath": "tests/test_main_config_error.py",
+      "summary": "Verifies that the main entry point exits with status 2 and prints an error message when given a bad configuration file.",
+      "tags": [
+        "test",
+        "entry-point",
+        "error-handling"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_pipeline_config.py",
+      "type": "file",
+      "name": "test_pipeline_config.py",
+      "filePath": "tests/test_pipeline_config.py",
+      "summary": "Tests that the pipeline's run.json serialization records config provenance when a YAML config is used and a null config when defaults are used.",
+      "tags": [
+        "test",
+        "configuration",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:ensemble/adapters/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "ensemble/adapters/__init__.py",
+      "summary": "Package barrel for the adapters subpackage that re-exports the shared base contracts and the three backend adapters (RFDETR, YOLO, DEIMv2) for the ensemble pipeline.",
+      "tags": [
+        "entry-point",
+        "barrel",
+        "adapters"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Python package __init__ acting as a re-export barrel."
+    },
+    {
+      "id": "file:ensemble/adapters/base.py",
+      "type": "file",
+      "name": "base.py",
+      "filePath": "ensemble/adapters/base.py",
+      "summary": "Defines the shared Prediction dataclass and the Adapter Protocol that every backend adapter implements, plus a diagnostic helper for logging batch prediction statistics.",
+      "tags": [
+        "data-model",
+        "type-definition",
+        "adapters",
+        "protocol"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses a typing.Protocol to define a structural interface that adapters conform to without explicit inheritance."
+    },
+    {
+      "id": "file:ensemble/adapters/deimv2_adapter.py",
+      "type": "file",
+      "name": "deimv2_adapter.py",
+      "filePath": "ensemble/adapters/deimv2_adapter.py",
+      "summary": "Adapter wrapping the DEIMv2 Pico detector, handling config materialization, checkpoint state-dict filtering, and batched inference via YAMLConfig and a PostProcessor into the shared Prediction format.",
+      "tags": [
+        "adapter",
+        "service",
+        "data-model",
+        "serialization"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Performs runtime sys.path injection and regex-based config rewriting to integrate an external DEIMv2 source tree."
+    },
+    {
+      "id": "file:ensemble/adapters/rfdetr_adapter.py",
+      "type": "file",
+      "name": "rfdetr_adapter.py",
+      "filePath": "ensemble/adapters/rfdetr_adapter.py",
+      "summary": "Adapter wrapping the RFDETRNano backend, loading weights and running batched prediction to emit detections in the shared Prediction format.",
+      "tags": [
+        "adapter",
+        "service",
+        "data-model"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:ensemble/adapters/yolo_adapter.py",
+      "type": "file",
+      "name": "yolo_adapter.py",
+      "filePath": "ensemble/adapters/yolo_adapter.py",
+      "summary": "Adapter wrapping the Ultralytics YOLOv12 Nano detector, ensuring the vendored ultralytics package is importable and converting model outputs into the shared Prediction format.",
+      "tags": [
+        "adapter",
+        "service",
+        "data-model"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:ensemble/data.py",
+      "type": "file",
+      "name": "data.py",
+      "filePath": "ensemble/data.py",
+      "summary": "Loads the single-class COCO test split into ImageRecord and CocoBundle structures, building ground-truth targets and providing batch iteration utilities for the pipeline.",
+      "tags": [
+        "data-model",
+        "data-pipeline",
+        "serialization",
+        "utility"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses dataclasses with cached_property-style computed accessors for COCO category mappings."
+    },
+    {
+      "id": "file:ensemble/visualize.py",
+      "type": "file",
+      "name": "visualize.py",
+      "filePath": "ensemble/visualize.py",
+      "summary": "Renders per-model and combined detection overlays onto sample images using supervision annotators, selecting representative records and converting Predictions into drawable Detections.",
+      "tags": [
+        "visualization",
+        "utility",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:ensemble/adapters/base.py:Prediction",
+      "type": "class",
+      "name": "Prediction",
+      "filePath": "ensemble/adapters/base.py",
+      "lineRange": [
+        22,
+        40
+      ],
+      "summary": "Dataclass holding a single image's detections (image_id, xyxy boxes, scores, class_ids) with an empty() factory and __len__ for box count.",
+      "tags": [
+        "data-model",
+        "factory",
+        "dataclass"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:ensemble/adapters/base.py:Adapter",
+      "type": "class",
+      "name": "Adapter",
+      "filePath": "ensemble/adapters/base.py",
+      "lineRange": [
+        43,
+        53
+      ],
+      "summary": "Protocol defining the adapter contract (name, display_name, load, infer_batch, unload) that all backend detector adapters must satisfy.",
+      "tags": [
+        "protocol",
+        "type-definition",
+        "adapters"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "function",
+      "name": "log_batch_predictions",
+      "filePath": "ensemble/adapters/base.py",
+      "lineRange": [
+        56,
+        130
+      ],
+      "summary": "Diagnostic helper that logs aggregate and per-sample statistics (box counts, score min/mean/max) for a batch of predictions when debug logging is enabled.",
+      "tags": [
+        "utility",
+        "logging",
+        "diagnostics"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/adapters/deimv2_adapter.py:_materialize_config",
+      "type": "function",
+      "name": "_materialize_config",
+      "filePath": "ensemble/adapters/deimv2_adapter.py",
+      "lineRange": [
+        56,
+        97
+      ],
+      "summary": "Reads the DEIMv2 YAML config, rewrites stale prefixes and relative include paths to absolute ones, and writes a temporary materialized config for loading.",
+      "tags": [
+        "serialization",
+        "config",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/adapters/deimv2_adapter.py:_filter_state_dict",
+      "type": "function",
+      "name": "_filter_state_dict",
+      "filePath": "ensemble/adapters/deimv2_adapter.py",
+      "lineRange": [
+        100,
+        116
+      ],
+      "summary": "Filters a checkpoint state dict to keep only keys whose shapes match the target model state, dropping incompatible tensors.",
+      "tags": [
+        "utility",
+        "serialization",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "type": "class",
+      "name": "DEIMv2Adapter",
+      "filePath": "ensemble/adapters/deimv2_adapter.py",
+      "lineRange": [
+        126,
+        284
+      ],
+      "summary": "Adapter implementation for the DEIMv2 Pico model: loads weights and config, builds the model and postprocessor, runs batched GPU inference, and returns Prediction objects.",
+      "tags": [
+        "adapter",
+        "service",
+        "api-handler"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "type": "class",
+      "name": "RFDETRAdapter",
+      "filePath": "ensemble/adapters/rfdetr_adapter.py",
+      "lineRange": [
+        24,
+        100
+      ],
+      "summary": "Adapter implementation for RFDETRNano: loads and optimizes the model, runs per-image prediction, and converts supervision Detections into the shared Prediction format.",
+      "tags": [
+        "adapter",
+        "service",
+        "api-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "type": "class",
+      "name": "YOLOAdapter",
+      "filePath": "ensemble/adapters/yolo_adapter.py",
+      "lineRange": [
+        44,
+        138
+      ],
+      "summary": "Adapter implementation for Ultralytics YOLO: ensures the vendored package is importable, loads the model to a device, and converts batched predict results into Prediction objects.",
+      "tags": [
+        "adapter",
+        "service",
+        "api-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/adapters/yolo_adapter.py:_ensure_ultralytics_importable",
+      "type": "function",
+      "name": "_ensure_ultralytics_importable",
+      "filePath": "ensemble/adapters/yolo_adapter.py",
+      "lineRange": [
+        26,
+        41
+      ],
+      "summary": "Validates the vendored ultralytics directory exists and prepends it to sys.path so the local package shadows any installed version.",
+      "tags": [
+        "utility",
+        "validation",
+        "bootstrap"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:ensemble/data.py:CocoBundle",
+      "type": "class",
+      "name": "CocoBundle",
+      "filePath": "ensemble/data.py",
+      "lineRange": [
+        32,
+        53
+      ],
+      "summary": "Dataclass bundling parsed COCO data: raw annotations, category-index mappings, image records, and targets, with helpers for class count and category names.",
+      "tags": [
+        "data-model",
+        "dataclass",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/data.py:load_coco",
+      "type": "function",
+      "name": "load_coco",
+      "filePath": "ensemble/data.py",
+      "lineRange": [
+        56,
+        136
+      ],
+      "summary": "Parses a COCO annotations JSON file, builds category-to-index mappings and ImageRecords, derives targets, and returns a populated CocoBundle with diagnostic logging.",
+      "tags": [
+        "data-pipeline",
+        "serialization",
+        "entry-point"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ensemble/data.py:_build_targets",
+      "type": "function",
+      "name": "_build_targets",
+      "filePath": "ensemble/data.py",
+      "lineRange": [
+        139,
+        172
+      ],
+      "summary": "Groups annotations by image and constructs per-image supervision Detections targets mapped to contiguous class indices.",
+      "tags": [
+        "data-pipeline",
+        "serialization",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/visualize.py:select_visualization_records",
+      "type": "function",
+      "name": "select_visualization_records",
+      "filePath": "ensemble/visualize.py",
+      "lineRange": [
+        41,
+        55
+      ],
+      "summary": "Selects up to a requested count of image records that have ground-truth detections for visualization.",
+      "tags": [
+        "utility",
+        "visualization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/visualize.py:_to_detections",
+      "type": "function",
+      "name": "_to_detections",
+      "filePath": "ensemble/visualize.py",
+      "lineRange": [
+        58,
+        74
+      ],
+      "summary": "Converts a Prediction into a top-k supervision Detections object sorted by descending score for rendering.",
+      "tags": [
+        "utility",
+        "serialization",
+        "visualization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/visualize.py:_annotate",
+      "type": "function",
+      "name": "_annotate",
+      "filePath": "ensemble/visualize.py",
+      "lineRange": [
+        85,
+        105
+      ],
+      "summary": "Draws boxes and optional score labels for a set of detections onto an image using model-specific annotators.",
+      "tags": [
+        "utility",
+        "visualization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/visualize.py:write_overlays",
+      "type": "function",
+      "name": "write_overlays",
+      "filePath": "ensemble/visualize.py",
+      "lineRange": [
+        108,
+        127
+      ],
+      "summary": "Writes one annotated overlay image per model for a given record by converting predictions to detections and saving the rendered result.",
+      "tags": [
+        "utility",
+        "visualization",
+        "io"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/visualize.py:write_combined_overlay",
+      "type": "function",
+      "name": "write_combined_overlay",
+      "filePath": "ensemble/visualize.py",
+      "lineRange": [
+        130,
+        163
+      ],
+      "summary": "Renders a single combined overlay drawing all models' detections on one canvas and saves it to the output directory.",
+      "tags": [
+        "utility",
+        "visualization",
+        "io"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:ensemble/fusion.py",
+      "type": "file",
+      "name": "fusion.py",
+      "filePath": "ensemble/fusion.py",
+      "summary": "Wraps ensemble_boxes.weighted_boxes_fusion to fuse per-model detections for a single image, handling normalization to [0,1] coordinates and back to pixel space.",
+      "tags": [
+        "service",
+        "fusion",
+        "object-detection",
+        "numpy"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "WBF requires box coordinates normalized to [0,1]; this module brackets the call with normalize/denormalize helpers."
+    },
+    {
+      "id": "function:ensemble/fusion.py:fuse_image",
+      "type": "function",
+      "name": "fuse_image",
+      "filePath": "ensemble/fusion.py",
+      "lineRange": [
+        35,
+        86
+      ],
+      "summary": "Fuses multiple models' Predictions for one image via weighted box fusion, returning a single merged Prediction in pixel coordinates.",
+      "tags": [
+        "fusion",
+        "object-detection",
+        "wbf",
+        "core-logic"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/fusion.py:_normalize_xyxy",
+      "type": "function",
+      "name": "_normalize_xyxy",
+      "filePath": "ensemble/fusion.py",
+      "lineRange": [
+        20,
+        25
+      ],
+      "summary": "Normalizes xyxy box coordinates to the [0,1] range expected by weighted_boxes_fusion, clipping out-of-bounds values.",
+      "tags": [
+        "utility",
+        "normalization",
+        "numpy"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:ensemble/metrics.py",
+      "type": "file",
+      "name": "metrics.py",
+      "filePath": "ensemble/metrics.py",
+      "summary": "Evaluates detection predictions against COCO ground truth using pycocotools COCOeval, deriving mAP@50, mAP@50-95, and precision/recall at the best-F1 operating point.",
+      "tags": [
+        "service",
+        "metrics",
+        "evaluation",
+        "object-detection",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses contextlib.redirect_stdout to silence pycocotools' verbose console output during evaluate/accumulate/summarize."
+    },
+    {
+      "id": "class:ensemble/metrics.py:EvalResult",
+      "type": "class",
+      "name": "EvalResult",
+      "filePath": "ensemble/metrics.py",
+      "lineRange": [
+        40,
+        44
+      ],
+      "summary": "Dataclass holding the four headline evaluation metrics: precision, recall, mAP@50, and mAP@50-95.",
+      "tags": [
+        "data-model",
+        "metrics",
+        "dataclass"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/metrics.py:evaluate",
+      "type": "function",
+      "name": "evaluate",
+      "filePath": "ensemble/metrics.py",
+      "lineRange": [
+        149,
+        178
+      ],
+      "summary": "Top-level evaluation entry point that converts predictions to COCO results, runs COCOeval, and assembles an EvalResult with mAP and best-F1 precision/recall.",
+      "tags": [
+        "evaluation",
+        "metrics",
+        "core-logic",
+        "coco"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/metrics.py:_precision_recall_at_best_f1",
+      "type": "function",
+      "name": "_precision_recall_at_best_f1",
+      "filePath": "ensemble/metrics.py",
+      "lineRange": [
+        91,
+        146
+      ],
+      "summary": "Computes precision and recall at the score threshold that maximizes F1 by accumulating TP/FP flags across COCOeval's per-image match results.",
+      "tags": [
+        "metrics",
+        "precision-recall",
+        "numpy",
+        "core-logic"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ensemble/metrics.py:predictions_to_coco_results",
+      "type": "function",
+      "name": "predictions_to_coco_results",
+      "filePath": "ensemble/metrics.py",
+      "lineRange": [
+        47,
+        71
+      ],
+      "summary": "Converts per-image Prediction objects into COCO-format detection result dicts, mapping class indices to category ids and xyxy boxes to xywh.",
+      "tags": [
+        "serialization",
+        "coco",
+        "object-detection",
+        "adapter"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/metrics.py:_build_coco_eval",
+      "type": "function",
+      "name": "_build_coco_eval",
+      "filePath": "ensemble/metrics.py",
+      "lineRange": [
+        74,
+        88
+      ],
+      "summary": "Constructs a configured COCOeval object from a COCO ground-truth bundle and detection results, running evaluate and accumulate.",
+      "tags": [
+        "evaluation",
+        "coco",
+        "factory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:ensemble/pipeline.py",
+      "type": "file",
+      "name": "pipeline.py",
+      "filePath": "ensemble/pipeline.py",
+      "summary": "Orchestration hub for the WBF ensemble: instantiates model adapters, runs per-model inference, fuses detections, evaluates with COCOeval, and writes CSV summaries, config provenance, and visualizations.",
+      "tags": [
+        "entry-point",
+        "orchestration",
+        "object-detection",
+        "pipeline",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses time.perf_counter for stage timing and configures both file and stream logging handlers per run."
+    },
+    {
+      "id": "class:ensemble/pipeline.py:ModelRunResult",
+      "type": "class",
+      "name": "ModelRunResult",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        48,
+        52
+      ],
+      "summary": "Dataclass bundling a model's spec, per-image predictions, evaluation metrics, and the path to its written COCO results JSON.",
+      "tags": [
+        "data-model",
+        "dataclass",
+        "object-detection"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:run_pipeline",
+      "type": "function",
+      "name": "run_pipeline",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        200,
+        288
+      ],
+      "summary": "Main pipeline driver: sets up logging, loads the COCO bundle, runs each active model adapter through inference and evaluation, then triggers fusion, summary, and visualization stages.",
+      "tags": [
+        "entry-point",
+        "orchestration",
+        "core-logic",
+        "pipeline"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_run_ensemble",
+      "type": "function",
+      "name": "_run_ensemble",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        291,
+        358
+      ],
+      "summary": "Performs the ensemble stage: per-image weighted box fusion across active model predictions, then evaluates the fused detections with COCOeval.",
+      "tags": [
+        "fusion",
+        "evaluation",
+        "core-logic",
+        "object-detection"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_write_summary_csv",
+      "type": "function",
+      "name": "_write_summary_csv",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        361,
+        401
+      ],
+      "summary": "Writes a CSV summary table of per-model and ensemble metrics, optionally substituting hardcoded values when dynamic computation is disabled.",
+      "tags": [
+        "serialization",
+        "csv",
+        "reporting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_write_visualizations",
+      "type": "function",
+      "name": "_write_visualizations",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        404,
+        441
+      ],
+      "summary": "Selects a subset of images and writes per-model and combined detection overlay images via the visualize module.",
+      "tags": [
+        "visualization",
+        "reporting",
+        "object-detection"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_setup_logging",
+      "type": "function",
+      "name": "_setup_logging",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        162,
+        197
+      ],
+      "summary": "Configures the root logger with file and stream handlers at the run's resolved log level, avoiding duplicate handler registration.",
+      "tags": [
+        "logging",
+        "configuration",
+        "setup"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_serialize_run_config",
+      "type": "function",
+      "name": "_serialize_run_config",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        92,
+        125
+      ],
+      "summary": "Serializes the resolved RunConfig and dataset stats to a JSON provenance file for the run.",
+      "tags": [
+        "serialization",
+        "provenance",
+        "configuration"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_write_parameter_values",
+      "type": "function",
+      "name": "_write_parameter_values",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        137,
+        159
+      ],
+      "summary": "Writes a human-readable text file listing every RunConfig field, its value, and the source (CLI, YAML, or builtin) that supplied it.",
+      "tags": [
+        "serialization",
+        "provenance",
+        "reporting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_instantiate_adapter",
+      "type": "function",
+      "name": "_instantiate_adapter",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        55,
+        75
+      ],
+      "summary": "Factory that maps a model key to its concrete adapter (RFDETR, YOLO, or DEIMv2) configured from the run spec.",
+      "tags": [
+        "factory",
+        "adapter",
+        "object-detection"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ensemble/pipeline.py:_run_inference",
+      "type": "function",
+      "name": "_run_inference",
+      "filePath": "ensemble/pipeline.py",
+      "lineRange": [
+        78,
+        89
+      ],
+      "summary": "Runs an adapter over the dataset in batches with a progress bar, collecting per-image predictions.",
+      "tags": [
+        "inference",
+        "object-detection",
+        "batch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_summary_and_params.py",
+      "type": "file",
+      "name": "test_summary_and_params.py",
+      "filePath": "tests/test_summary_and_params.py",
+      "summary": "Pytest suite verifying the pipeline's CSV summary generation, run-name resolution precedence, and parameter-provenance file output.",
+      "tags": [
+        "test",
+        "pytest",
+        "pipeline"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:tests/test_summary_and_params.py:_model_results",
+      "type": "function",
+      "name": "_model_results",
+      "filePath": "tests/test_summary_and_params.py",
+      "lineRange": [
+        26,
+        38
+      ],
+      "summary": "Test fixture builder constructing fake ModelRunResult entries with synthetic EvalResult metrics.",
+      "tags": [
+        "test",
+        "fixture",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:tests/test_summary_and_params.py:test_summary_dynamic_uses_computed_metrics_one_row_each",
+      "type": "function",
+      "name": "test_summary_dynamic_uses_computed_metrics_one_row_each",
+      "filePath": "tests/test_summary_and_params.py",
+      "lineRange": [
+        53,
+        66
+      ],
+      "summary": "Verifies the summary CSV uses dynamically computed metrics and emits exactly one row per model plus the ensemble.",
+      "tags": [
+        "test",
+        "pytest",
+        "csv"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:tests/test_summary_and_params.py:test_parameter_values_records_all_fields_with_sources",
+      "type": "function",
+      "name": "test_parameter_values_records_all_fields_with_sources",
+      "filePath": "tests/test_summary_and_params.py",
+      "lineRange": [
+        133,
+        151
+      ],
+      "summary": "Verifies the parameter-values provenance file lists all RunConfig fields with their correct source attribution.",
+      "tags": [
+        "test",
+        "pytest",
+        "provenance"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:AGENTS.md",
+      "type": "document",
+      "name": "AGENTS.md",
+      "filePath": "AGENTS.md",
+      "summary": "Project operating rules for AI agents covering pretrained weights and dataset layout, workflow rules, testing best practices, success/failure criteria, and evaluation threshold semantics for the WBF ensemble pipeline.",
+      "tags": [
+        "documentation",
+        "agent-rules",
+        "workflow",
+        "testing",
+        "conventions"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:CLAUDE.md",
+      "type": "document",
+      "name": "CLAUDE.md",
+      "filePath": "CLAUDE.md",
+      "summary": "Twelve-plus-rule template defining engineering principles for every task in the project, including simplicity-first, surgical changes, code-to-answer, meaningful testing, and git worktree discipline.",
+      "tags": [
+        "documentation",
+        "conventions",
+        "agent-rules",
+        "guidelines"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:ENSEMBLE_METHOD_PRD.md",
+      "type": "document",
+      "name": "ENSEMBLE_METHOD_PRD.md",
+      "filePath": "ENSEMBLE_METHOD_PRD.md",
+      "summary": "Authoritative product requirements document for the WBF ensemble pipeline detailing architecture, module structure, core flow, CLI contract, shared prediction contract, per-adapter notes, Weighted Box Fusion integration, the unified evaluator, output artifacts, environment requirements, and threshold semantics.",
+      "tags": [
+        "documentation",
+        "specification",
+        "architecture",
+        "entry-point",
+        "reference"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Operational reference spanning 23 sections; treats RFDETR, YOLOv12, and DEIMv2 adapters plus a shared Prediction contract as the bounded-responsibility seams of the pipeline."
+    },
+    {
+      "id": "document:requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "requirements.txt",
+      "summary": "Pins the Python runtime dependencies for the ensemble pipeline, including the detection model libraries and the Weighted Box Fusion implementation.",
+      "tags": [
+        "documentation",
+        "dependencies",
+        "configuration",
+        "build-system"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:todo.txt",
+      "type": "document",
+      "name": "todo.txt",
+      "filePath": "todo.txt",
+      "summary": "Working checklist tracking ensemble experiment tasks such as conservative/aggressive model profiles, indirect NMS via box-skip threshold, output naming improvements, and pending fusion enhancements and grid search.",
+      "tags": [
+        "documentation",
+        "planning",
+        "checklist",
+        "roadmap"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:configs/aggressive.yaml",
+      "type": "config",
+      "name": "aggressive.yaml",
+      "filePath": "configs/aggressive.yaml",
+      "summary": "Aggressive WBF run profile tuned for higher recall and lower precision: low fusion IoU (0.15), low skip-box threshold (0.1), and loose YOLO NMS (0.95) so more candidate boxes survive into Weighted Box Fusion.",
+      "tags": [
+        "configuration",
+        "run-profile",
+        "fusion-tuning",
+        "high-recall"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Flat YAML key/value profile; equal per-model weights [RFDETR, YOLO, DEIMv2]."
+    },
+    {
+      "id": "config:configs/conservative.yaml",
+      "type": "config",
+      "name": "conservative.yaml",
+      "filePath": "configs/conservative.yaml",
+      "summary": "Conservative WBF run profile favoring higher precision and lower recall, using stock fusion IoU (0.7), skip-box 0.5, and standard YOLO NMS (0.75) with equal per-model weights.",
+      "tags": [
+        "configuration",
+        "run-profile",
+        "fusion-tuning",
+        "high-precision"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:configs/example_config.yaml",
+      "type": "config",
+      "name": "example_config.yaml",
+      "filePath": "configs/example_config.yaml",
+      "summary": "Annotated reference template documenting every overridable run parameter (fusion knobs, dataset/output paths, model weights, visualization options) with all keys commented out so they fall back to config.py defaults.",
+      "tags": [
+        "configuration",
+        "template",
+        "documentation",
+        "run-profile"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Self-documenting YAML; explains the config.py -> YAML -> CLI resolution order and strict unknown-key validation."
+    },
+    {
+      "id": "config:configs/fake_nms.yaml",
+      "type": "config",
+      "name": "fake_nms.yaml",
+      "filePath": "configs/fake_nms.yaml",
+      "summary": "Run profile that loosens YOLO NMS (yolo_iou 0.95) to approximate a no-NMS regime, keeping stock WBF IoU (0.7) and skip-box (0.5) so more raw detections reach fusion; predict_threshold left to the config.py default.",
+      "tags": [
+        "configuration",
+        "run-profile",
+        "fusion-tuning",
+        "experiment"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.understand-anything/.understandignore",
+      "type": "config",
+      "name": ".understandignore",
+      "filePath": ".understand-anything/.understandignore",
+      "summary": "Tooling meta-file listing glob exclusion patterns that control which paths the Understand-Anything analyzer skips when scanning the project.",
+      "tags": [
+        "configuration",
+        "tooling",
+        "ignore-patterns"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:ensemble/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "ensemble/__init__.py",
+      "summary": "Package marker and public API surface for the ensemble WBF pipeline, declaring the package version and its exported symbols.",
+      "tags": [
+        "entry-point",
+        "barrel",
+        "type-definition"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Python package initializer exposing __version__ via __all__; no submodule re-exports."
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "file:ensemble/config_file.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "file:ensemble/config.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:ensemble/cli.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:ensemble/config_file.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:ensemble/pipeline.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_cli_config.py",
+      "target": "file:ensemble/cli.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_cli_config.py",
+      "target": "file:ensemble/config_file.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_cli_config.py",
+      "target": "file:ensemble/config.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_config_file.py",
+      "target": "file:ensemble/config_file.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_main_config_error.py",
+      "target": "file:main.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_pipeline_config.py",
+      "target": "file:ensemble/cli.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_pipeline_config.py",
+      "target": "file:ensemble/pipeline.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:build_parser",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:parse_run_config",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:_default_field_values",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:_collect_cli_overrides",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:_resolve_config_path",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:build_parser",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "function:ensemble/cli.py:parse_run_config",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "class:ensemble/config.py:RunConfig",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "class:ensemble/config.py:ModelSpec",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "function:ensemble/config.py:find_repo_root",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "function:ensemble/config.py:_read_env_file",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "class:ensemble/config.py:RunConfig",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "class:ensemble/config.py:ModelSpec",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config.py",
+      "target": "function:ensemble/config.py:find_repo_root",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:load_config_file",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:resolve",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:render_banner",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "class:ensemble/config_file.py:Override",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "class:ensemble/config_file.py:FieldSpec",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:load_config_file",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:resolve",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "function:ensemble/config_file.py:render_banner",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "class:ensemble/config_file.py:Override",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:main.py",
+      "target": "function:main.py:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:main.py",
+      "target": "function:main.py:main",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/cli.py:parse_run_config",
+      "target": "function:ensemble/config_file.py:load_config_file",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/cli.py:parse_run_config",
+      "target": "function:ensemble/config_file.py:resolve",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/cli.py:parse_run_config",
+      "target": "function:ensemble/config_file.py:render_banner",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/cli.py:parse_run_config",
+      "target": "class:ensemble/config.py:RunConfig",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:main.py:main",
+      "target": "function:ensemble/cli.py:parse_run_config",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:main.py:main",
+      "target": "function:ensemble/pipeline.py:run_pipeline",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "file:tests/test_cli_config.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:ensemble/config_file.py",
+      "target": "file:tests/test_config_file.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:tests/test_main_config_error.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:ensemble/cli.py",
+      "target": "file:tests/test_pipeline_config.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:ensemble/adapters/__init__.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/__init__.py",
+      "target": "file:ensemble/adapters/deimv2_adapter.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/__init__.py",
+      "target": "file:ensemble/adapters/rfdetr_adapter.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/__init__.py",
+      "target": "file:ensemble/adapters/yolo_adapter.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/rfdetr_adapter.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/rfdetr_adapter.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/yolo_adapter.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/yolo_adapter.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "class:ensemble/adapters/base.py:Prediction",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "class:ensemble/adapters/base.py:Adapter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "class:ensemble/adapters/base.py:Prediction",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "class:ensemble/adapters/base.py:Adapter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/adapters/base.py",
+      "target": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "function:ensemble/adapters/deimv2_adapter.py:_materialize_config",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "function:ensemble/adapters/deimv2_adapter.py:_filter_state_dict",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/deimv2_adapter.py",
+      "target": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "target": "function:ensemble/adapters/deimv2_adapter.py:_materialize_config",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "target": "function:ensemble/adapters/deimv2_adapter.py:_filter_state_dict",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "target": "class:ensemble/adapters/base.py:Prediction",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "target": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/deimv2_adapter.py:DEIMv2Adapter",
+      "target": "class:ensemble/adapters/base.py:Adapter",
+      "type": "implements",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:ensemble/adapters/rfdetr_adapter.py",
+      "target": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/rfdetr_adapter.py",
+      "target": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "target": "class:ensemble/adapters/base.py:Prediction",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "target": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/rfdetr_adapter.py:RFDETRAdapter",
+      "target": "class:ensemble/adapters/base.py:Adapter",
+      "type": "implements",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:ensemble/adapters/yolo_adapter.py",
+      "target": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/yolo_adapter.py",
+      "target": "function:ensemble/adapters/yolo_adapter.py:_ensure_ultralytics_importable",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/adapters/yolo_adapter.py",
+      "target": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "target": "function:ensemble/adapters/yolo_adapter.py:_ensure_ultralytics_importable",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "target": "class:ensemble/adapters/base.py:Prediction",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "target": "function:ensemble/adapters/base.py:log_batch_predictions",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "class:ensemble/adapters/yolo_adapter.py:YOLOAdapter",
+      "target": "class:ensemble/adapters/base.py:Adapter",
+      "type": "implements",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:ensemble/data.py",
+      "target": "class:ensemble/data.py:CocoBundle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/data.py",
+      "target": "function:ensemble/data.py:load_coco",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/data.py",
+      "target": "function:ensemble/data.py:_build_targets",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/data.py",
+      "target": "class:ensemble/data.py:CocoBundle",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/data.py",
+      "target": "function:ensemble/data.py:load_coco",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/data.py:load_coco",
+      "target": "function:ensemble/data.py:_build_targets",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/data.py:load_coco",
+      "target": "class:ensemble/data.py:CocoBundle",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:select_visualization_records",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:_to_detections",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:_annotate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:write_overlays",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:write_combined_overlay",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:select_visualization_records",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:write_overlays",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/visualize.py",
+      "target": "function:ensemble/visualize.py:write_combined_overlay",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/visualize.py:write_overlays",
+      "target": "function:ensemble/visualize.py:_to_detections",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/visualize.py:write_overlays",
+      "target": "function:ensemble/visualize.py:_annotate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/visualize.py:write_combined_overlay",
+      "target": "function:ensemble/visualize.py:_to_detections",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/visualize.py:write_combined_overlay",
+      "target": "function:ensemble/visualize.py:_annotate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/fusion.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/adapters/__init__.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/config.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/data.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/fusion.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/metrics.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:ensemble/visualize.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "file:ensemble/cli.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "file:ensemble/config.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "file:ensemble/metrics.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "file:ensemble/pipeline.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:ensemble/fusion.py",
+      "target": "function:ensemble/fusion.py:fuse_image",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/fusion.py",
+      "target": "function:ensemble/fusion.py:_normalize_xyxy",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/fusion.py",
+      "target": "function:ensemble/fusion.py:fuse_image",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "class:ensemble/metrics.py:EvalResult",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "function:ensemble/metrics.py:evaluate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "function:ensemble/metrics.py:_precision_recall_at_best_f1",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "function:ensemble/metrics.py:predictions_to_coco_results",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "function:ensemble/metrics.py:_build_coco_eval",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "class:ensemble/metrics.py:EvalResult",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "function:ensemble/metrics.py:evaluate",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "class:ensemble/pipeline.py:ModelRunResult",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:run_pipeline",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_run_ensemble",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_write_summary_csv",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_write_visualizations",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_setup_logging",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_serialize_run_config",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_write_parameter_values",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_instantiate_adapter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:_run_inference",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "function:ensemble/pipeline.py:run_pipeline",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "function:tests/test_summary_and_params.py:_model_results",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "function:tests/test_summary_and_params.py:test_summary_dynamic_uses_computed_metrics_one_row_each",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:tests/test_summary_and_params.py",
+      "target": "function:tests/test_summary_and_params.py:test_parameter_values_records_all_fields_with_sources",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:ensemble/metrics.py:evaluate",
+      "target": "function:ensemble/metrics.py:predictions_to_coco_results",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/metrics.py:evaluate",
+      "target": "function:ensemble/metrics.py:_build_coco_eval",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/metrics.py:evaluate",
+      "target": "function:ensemble/metrics.py:_precision_recall_at_best_f1",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/pipeline.py:_run_ensemble",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/pipeline.py:_write_summary_csv",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/pipeline.py:_write_visualizations",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/pipeline.py:_instantiate_adapter",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/pipeline.py:_run_inference",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:run_pipeline",
+      "target": "function:ensemble/metrics.py:evaluate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:_run_ensemble",
+      "target": "function:ensemble/fusion.py:fuse_image",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:ensemble/pipeline.py:_run_ensemble",
+      "target": "function:ensemble/metrics.py:evaluate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:ensemble/pipeline.py",
+      "target": "file:tests/test_summary_and_params.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:ensemble/metrics.py",
+      "target": "file:tests/test_summary_and_params.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/cli.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/pipeline.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/fusion.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/metrics.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/data.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/config.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/config_file.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/adapters/base.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/adapters/rfdetr_adapter.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/adapters/yolo_adapter.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:ensemble/adapters/deimv2_adapter.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:ENSEMBLE_METHOD_PRD.md",
+      "target": "file:main.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:main.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:requirements.txt",
+      "target": "file:ensemble/fusion.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:requirements.txt",
+      "target": "file:main.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:todo.txt",
+      "target": "file:ensemble/fusion.py",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:todo.txt",
+      "target": "document:ENSEMBLE_METHOD_PRD.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:configs/aggressive.yaml",
+      "target": "file:ensemble/config_file.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/aggressive.yaml",
+      "target": "file:ensemble/pipeline.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/conservative.yaml",
+      "target": "file:ensemble/config_file.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/conservative.yaml",
+      "target": "file:ensemble/pipeline.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/example_config.yaml",
+      "target": "file:ensemble/config_file.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/example_config.yaml",
+      "target": "file:ensemble/config.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/fake_nms.yaml",
+      "target": "file:ensemble/config_file.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:configs/fake_nms.yaml",
+      "target": "file:ensemble/pipeline.py",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:orchestration",
+      "name": "Entry & Orchestration",
+      "description": "Top-level entry point and the pipeline hub that wires adapters, inference, Weighted Box Fusion, COCO evaluation, and artifact output together for a run.",
+      "nodeIds": [
+        "file:main.py",
+        "file:ensemble/pipeline.py",
+        "file:ensemble/__init__.py"
+      ]
+    },
+    {
+      "id": "layer:config",
+      "name": "Configuration",
+      "description": "CLI parsing, RunConfig/ModelSpec dataclasses, YAML config loading with defaults/YAML/CLI precedence, the run-profile YAML files, and the analyzer ignore-file.",
+      "nodeIds": [
+        "file:ensemble/cli.py",
+        "file:ensemble/config.py",
+        "file:ensemble/config_file.py",
+        "config:configs/aggressive.yaml",
+        "config:configs/conservative.yaml",
+        "config:configs/example_config.yaml",
+        "config:configs/fake_nms.yaml",
+        "config:.understand-anything/.understandignore"
+      ]
+    },
+    {
+      "id": "layer:adapters",
+      "name": "Model Adapters",
+      "description": "Shared Prediction dataclass and Adapter Protocol plus the three concrete backend adapters (RFDETR Nano, YOLOv12 Nano, DEIMv2 Pico) that emit detections in the unified prediction format.",
+      "nodeIds": [
+        "file:ensemble/adapters/__init__.py",
+        "file:ensemble/adapters/base.py",
+        "file:ensemble/adapters/deimv2_adapter.py",
+        "file:ensemble/adapters/rfdetr_adapter.py",
+        "file:ensemble/adapters/yolo_adapter.py"
+      ]
+    },
+    {
+      "id": "layer:fusion-eval",
+      "name": "Fusion & Evaluation",
+      "description": "Weighted Box Fusion of per-model detections and the pycocotools-based evaluator computing mAP and precision/recall at the best-F1 operating point.",
+      "nodeIds": [
+        "file:ensemble/fusion.py",
+        "file:ensemble/metrics.py"
+      ]
+    },
+    {
+      "id": "layer:data",
+      "name": "Data & I/O",
+      "description": "Loads the single-class COCO test split into ImageRecord/CocoBundle structures and renders per-model and combined detection overlays onto sample images.",
+      "nodeIds": [
+        "file:ensemble/data.py",
+        "file:ensemble/visualize.py"
+      ]
+    },
+    {
+      "id": "layer:test",
+      "name": "Tests",
+      "description": "Pytest suites exercising CLI/YAML/default precedence, config loading and error handling, main exit codes, and pipeline CSV summary and parameter-provenance output.",
+      "nodeIds": [
+        "file:tests/test_cli_config.py",
+        "file:tests/test_config_file.py",
+        "file:tests/test_main_config_error.py",
+        "file:tests/test_pipeline_config.py",
+        "file:tests/test_summary_and_params.py"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "Documentation",
+      "description": "Project specification (PRD), agent and engineering operating rules, pinned runtime dependencies, and the experiment task checklist.",
+      "nodeIds": [
+        "document:ENSEMBLE_METHOD_PRD.md",
+        "document:AGENTS.md",
+        "document:CLAUDE.md",
+        "document:requirements.txt",
+        "document:todo.txt"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview (PRD)",
+      "description": "Start with the ENSEMBLE_METHOD_PRD, the authoritative specification for this pipeline. It explains the core idea: run three pretrained polyp detectors (RFDETR Nano, YOLOv12 Nano, DEIMv2 Pico) over the same 1624-image COCO test split, normalize their outputs into one shared Prediction format, fuse them with Weighted Box Fusion, and report Precision, Recall, mAP@0.50, and mAP@[0.50:0.95] for each model and the ensemble in a single CSV. Read this first to understand the module layout and the end-to-end flow the rest of the tour walks through.",
+      "nodeIds": [
+        "document:ENSEMBLE_METHOD_PRD.md",
+        "document:requirements.txt"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Application Entry Point",
+      "description": "main.py is the thin CLI wrapper invoked as `python main.py` from the repo root. It does just two things: parse the run configuration from CLI flags and optional YAML, then hand that config to run_pipeline. On a bad configuration it exits with code 2, keeping all heavy orchestration out of the entry point. This is depth 0 of the dependency graph and the natural place to begin tracing runtime flow.",
+      "nodeIds": [
+        "file:main.py"
+      ],
+      "languageLesson": "Python entry-point scripts use the `if __name__ == \"__main__\":` guard so the module can be both imported (for testing) and executed directly. main.py returns an exit code that the guard passes to sys.exit, which is how the configuration-error exit code 2 reaches the shell."
+    },
+    {
+      "order": 3,
+      "title": "Configuration Resolution",
+      "description": "Building on main.py's call to parse the run config, this step covers how a run is configured. cli.py builds the argparse parser and merges three sources into one RunConfig, while config_file.py loads YAML profiles, coerces keys into typed fields, and resolves the precedence chain. Together they implement the rule from the PRD: built-in defaults are overridden by a YAML profile, which is in turn overridden by explicit CLI flags. config_file.py has the highest fan-in of any module here, since the config it produces drives every downstream stage.",
+      "nodeIds": [
+        "file:ensemble/cli.py",
+        "file:ensemble/config_file.py",
+        "file:ensemble/config.py"
+      ],
+      "languageLesson": "config.py uses Python @dataclass to declare RunConfig and ModelSpec as typed records with default values. Dataclasses give you a clean field list, free __init__/__repr__, and a single source of truth for what a run parameter is named and what type it holds, which config_file.py keys its YAML coercion against."
+    },
+    {
+      "order": 4,
+      "title": "Run Profiles",
+      "description": "These YAML files are the practical face of the configuration system from Step 3. example_config.yaml is an annotated template with every key commented out so it falls back to config.py defaults, while conservative.yaml and aggressive.yaml are tuned experiment profiles. The conservative profile uses stock fusion IoU (0.7) and skip-box 0.5 for higher precision; the aggressive profile drops fusion IoU to 0.15 and skip-box to 0.1 so more candidate boxes survive into fusion, trading precision for recall.",
+      "nodeIds": [
+        "config:configs/example_config.yaml",
+        "config:configs/conservative.yaml",
+        "config:configs/aggressive.yaml"
+      ],
+      "languageLesson": "YAML config profiles separate tunable parameters from code. Leaving a key commented out (rather than setting it) is a deliberate pattern here: absent keys fall through to the dataclass default, so a profile only needs to declare the knobs it actually changes."
+    },
+    {
+      "order": 5,
+      "title": "Data Loading",
+      "description": "Before any model runs, the COCO test split must be loaded. data.py reads the single-class polyp dataset into ImageRecord and CocoBundle structures, builds the ground-truth target dicts used later for evaluation, and provides the batch iteration utilities the pipeline feeds to each adapter. With a fan-in of 8 it is one of the most depended-upon modules: nearly every adapter and the evaluator import it for the shared image/record types.",
+      "nodeIds": [
+        "file:ensemble/data.py"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "The Shared Prediction Contract",
+      "description": "base.py is the linchpin of the adapter layer and the highest fan-in module in the codebase (tied at 9). It defines the Prediction dataclass that every detector must emit and the Adapter Protocol that every backend wrapper must satisfy, plus a diagnostic helper for logging batch statistics. This shared contract is what lets three completely different detectors be fused and evaluated by identical downstream code.",
+      "nodeIds": [
+        "file:ensemble/adapters/base.py"
+      ],
+      "languageLesson": "The Adapter Protocol uses typing.Protocol for structural typing: any class with the right method signature satisfies the contract without explicitly subclassing it. This is how RFDETR, YOLO, and DEIMv2 adapters all count as Adapters while wrapping unrelated third-party libraries."
+    },
+    {
+      "order": 7,
+      "title": "The Three Model Adapters",
+      "description": "These are the concrete backends that implement the Adapter Protocol from Step 6, re-exported through the adapters package barrel. Each wraps a different library and normalizes its raw output into the shared Prediction format: rfdetr_adapter wraps RFDETRNano, yolo_adapter wraps Ultralytics YOLOv12 Nano (ensuring the vendored ultralytics package is importable), and deimv2_adapter wraps DEIMv2 Pico with checkpoint state-dict filtering and a PostProcessor. They sit at depth 3, the leaves of the dependency graph, because everything funnels their detections into a single uniform stream.",
+      "nodeIds": [
+        "file:ensemble/adapters/__init__.py",
+        "file:ensemble/adapters/rfdetr_adapter.py",
+        "file:ensemble/adapters/yolo_adapter.py",
+        "file:ensemble/adapters/deimv2_adapter.py"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "Weighted Box Fusion",
+      "description": "With each model producing Predictions, fusion.py performs the central ensemble step. It wraps ensemble_boxes.weighted_boxes_fusion to combine the per-model detections for one image, normalizing pixel coordinates to the [0,1] range the library expects and converting them back to pixel space afterward. The fusion IoU and skip-box thresholds you saw in the YAML profiles (Step 4) are exactly the knobs that control how aggressively boxes here get merged.",
+      "nodeIds": [
+        "file:ensemble/fusion.py"
+      ]
+    },
+    {
+      "order": 9,
+      "title": "Evaluation Metrics",
+      "description": "metrics.py turns predictions into the numbers the PRD promises. It feeds predictions and the ground-truth targets from Step 5 into pycocotools COCOeval, deriving mAP@0.50 and mAP@[0.50:0.95], then extracts Precision and Recall at the best-F1 operating point. The same evaluate function scores each standalone model and the fused ensemble, so the comparison in the final CSV is strictly apples-to-apples.",
+      "nodeIds": [
+        "file:ensemble/metrics.py"
+      ]
+    },
+    {
+      "order": 10,
+      "title": "Orchestration Hub & Outputs",
+      "description": "pipeline.py is where every previous step comes together. run_pipeline instantiates the adapters, runs per-model inference over the data batches, fuses detections via fusion.py, evaluates each model and the ensemble via metrics.py, and writes the CSV summary, config provenance, and visualizations. visualize.py renders per-model and combined detection overlays onto representative sample images using supervision annotators. This is the orchestration layer the PRD calls the pipeline hub.",
+      "nodeIds": [
+        "file:ensemble/pipeline.py",
+        "file:ensemble/visualize.py"
+      ]
+    },
+    {
+      "order": 11,
+      "title": "Tests & Operating Rules",
+      "description": "Finally, the test suite locks in the behaviors most likely to break silently. The tests cover CLI/YAML/default precedence, config-file loading and error handling, main.py's exit-code-2 contract, and the pipeline's CSV summary and parameter-provenance output. AGENTS.md complements them with operating rules on weights, dataset layout, testing practice, and the evaluation threshold semantics, giving you the guardrails for changing the pipeline safely.",
+      "nodeIds": [
+        "file:tests/test_cli_config.py",
+        "file:tests/test_config_file.py",
+        "file:tests/test_main_config_error.py",
+        "file:tests/test_summary_and_params.py",
+        "document:AGENTS.md"
+      ]
+    }
+  ]
+}

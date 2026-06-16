@@ -1,0 +1,2242 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "b3e4349ee503e2dab58e73870c980280b6cee651",
+  "generatedAt": "2026-06-16T16:28:44.583Z",
+  "files": {
+    ".understand-anything/.understandignore": {
+      "filePath": ".understand-anything/.understandignore",
+      "contentHash": "8ad4bc621dc56c9e1c430133d1e78aa67af7e957f9f376c3f0204650ace78aa8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "c4ce43b46a9615d616a1539c658dd2a25b7cdffb8457d832b9be0ed075d992e0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 218,
+      "hasStructuralAnalysis": true
+    },
+    "CLAUDE.md": {
+      "filePath": "CLAUDE.md",
+      "contentHash": "7fae3a807a587cc89f2f1a412b2110af4aaaaa7ff46218ae02a7b37040738942",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 60,
+      "hasStructuralAnalysis": true
+    },
+    "configs/aggressive.yaml": {
+      "filePath": "configs/aggressive.yaml",
+      "contentHash": "fba8233ffa214259308b38471087393cbd981f0402e258a47e636947284c0c63",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 9,
+      "hasStructuralAnalysis": true
+    },
+    "configs/conservative.yaml": {
+      "filePath": "configs/conservative.yaml",
+      "contentHash": "73085609dc1b7058a8870a4ec686f924ddcbdfeef8bbf6c2073cd389765179c2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 8,
+      "hasStructuralAnalysis": true
+    },
+    "configs/example_config.yaml": {
+      "filePath": "configs/example_config.yaml",
+      "contentHash": "a3b7f0e84ca98fde93c405e6f386db43896a26994532208f0b4a7626647bf337",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 55,
+      "hasStructuralAnalysis": true
+    },
+    "configs/fake_nms.yaml": {
+      "filePath": "configs/fake_nms.yaml",
+      "contentHash": "d16a7cf91e0c5bbd85f28e955851ec0ba9d126c8939435ad209b3917094b4313",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "ENSEMBLE_METHOD_PRD.md": {
+      "filePath": "ENSEMBLE_METHOD_PRD.md",
+      "contentHash": "6512f7d7f408acbc528e0639260bf69f34016a67d34f45784265c7c70014259e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 546,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/__init__.py": {
+      "filePath": "ensemble/__init__.py",
+      "contentHash": "314bc0a738610fce9bfdd1b50b3b89bb6c615d07ad1564220628db0658fa4e5d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/adapters/__init__.py": {
+      "filePath": "ensemble/adapters/__init__.py",
+      "contentHash": "e767e40eeb7fa89f1d58de027857b5e17ab9a51d99cc3f6b1c79295958818eda",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Adapter",
+            "Prediction"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.deimv2_adapter",
+          "specifiers": [
+            "DEIMv2Adapter"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.rfdetr_adapter",
+          "specifiers": [
+            "RFDETRAdapter"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.yolo_adapter",
+          "specifiers": [
+            "YOLOAdapter"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/adapters/base.py": {
+      "filePath": "ensemble/adapters/base.py",
+      "contentHash": "22725178f4c836b4e43845bfd70fe4de5010f292be41ce3e98142b9c61e503a3",
+      "functions": [
+        {
+          "name": "log_batch_predictions",
+          "params": [
+            "adapter_name",
+            "predictions",
+            "sample_first",
+            "include_samples"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 75
+        }
+      ],
+      "classes": [
+        {
+          "name": "Prediction",
+          "methods": [
+            "empty",
+            "__len__"
+          ],
+          "properties": [
+            "image_id",
+            "xyxy",
+            "scores",
+            "class_ids"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "Adapter",
+          "methods": [
+            "load",
+            "infer_batch",
+            "unload"
+          ],
+          "properties": [
+            "name",
+            "display_name"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Protocol"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "ImageRecord"
+          ]
+        }
+      ],
+      "exports": [
+        "Prediction",
+        "Adapter",
+        "log_batch_predictions"
+      ],
+      "totalLines": 131,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/adapters/deimv2_adapter.py": {
+      "filePath": "ensemble/adapters/deimv2_adapter.py",
+      "contentHash": "45e3ae9636ce2c01d2dc59fb869e43ec86e6a02656d488403201a2e5dfa99fe7",
+      "functions": [
+        {
+          "name": "_ensure_deimv2_importable",
+          "params": [
+            "deimv2_dir"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "_materialize_config",
+          "params": [
+            "config_path",
+            "deimv2_dir"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "_filter_state_dict",
+          "params": [
+            "model_state",
+            "ckpt_state"
+          ],
+          "returnType": "tuple[dict, int, int]",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "_strip_module_prefix",
+          "params": [
+            "state_dict"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [
+        {
+          "name": "DEIMv2Adapter",
+          "methods": [
+            "__init__",
+            "load",
+            "infer_batch",
+            "unload"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 159
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "tempfile",
+          "specifiers": [
+            "tempfile"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "PIL",
+          "specifiers": [
+            "Image"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction",
+            "log_batch_predictions"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "ImageRecord"
+          ]
+        }
+      ],
+      "exports": [
+        "_ensure_deimv2_importable",
+        "_materialize_config",
+        "_filter_state_dict",
+        "_strip_module_prefix",
+        "DEIMv2Adapter"
+      ],
+      "totalLines": 285,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/adapters/rfdetr_adapter.py": {
+      "filePath": "ensemble/adapters/rfdetr_adapter.py",
+      "contentHash": "b56645140b297eaea13251f44198836cb101b1d90fd902607408f46ab2d0b13c",
+      "functions": [],
+      "classes": [
+        {
+          "name": "RFDETRAdapter",
+          "methods": [
+            "__init__",
+            "load",
+            "infer_batch",
+            "unload"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 77
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "PIL",
+          "specifiers": [
+            "Image"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction",
+            "log_batch_predictions"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "ImageRecord"
+          ]
+        }
+      ],
+      "exports": [
+        "RFDETRAdapter"
+      ],
+      "totalLines": 101,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/adapters/yolo_adapter.py": {
+      "filePath": "ensemble/adapters/yolo_adapter.py",
+      "contentHash": "cecaee672866962871f990f267635ce63ed7000e4b9fdab2ae95fc3246999cfc",
+      "functions": [
+        {
+          "name": "_ensure_ultralytics_importable",
+          "params": [
+            "yolo_dir"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [
+        {
+          "name": "YOLOAdapter",
+          "methods": [
+            "__init__",
+            "load",
+            "infer_batch",
+            "unload"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 95
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction",
+            "log_batch_predictions"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "ImageRecord"
+          ]
+        }
+      ],
+      "exports": [
+        "_ensure_ultralytics_importable",
+        "YOLOAdapter"
+      ],
+      "totalLines": 139,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/cli.py": {
+      "filePath": "ensemble/cli.py",
+      "contentHash": "2e02e1a1346de113a5c23184ded4c4add40ce559f4ea10ce67694cb2a42b7f33",
+      "functions": [
+        {
+          "name": "_bool_flag",
+          "params": [
+            "value"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "build_parser",
+          "params": [],
+          "returnType": "argparse.ArgumentParser",
+          "exported": true,
+          "lineCount": 84
+        },
+        {
+          "name": "_default_field_values",
+          "params": [],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_collect_cli_overrides",
+          "params": [
+            "args"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_resolve_config_path",
+          "params": [
+            "raw"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "parse_run_config",
+          "params": [
+            "argv"
+          ],
+          "returnType": "RunConfig",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "_timestamp",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_default_run_name",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "dt"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "ensemble.config",
+          "specifiers": [
+            "DEFAULT_BATCH_SIZE",
+            "DEFAULT_DATASET_DIR",
+            "DEFAULT_DEVICE",
+            "DEFAULT_DYNAMIC_METRICS",
+            "DEFAULT_LOG_LEVEL",
+            "DEFAULT_OUTPUT_DIR",
+            "DEFAULT_PREDICT_THRESHOLD",
+            "DEFAULT_VISUALIZATION_COUNT",
+            "DEFAULT_WBF_IOU",
+            "DEFAULT_WBF_SKIP_BOX_THR",
+            "DEFAULT_YOLO_IOU_THRESHOLD",
+            "DEIMV2_CONFIG",
+            "DEIMV2_DIR",
+            "DEIMV2_WEIGHTS",
+            "MODEL_SPECS",
+            "RFDETR_WEIGHTS",
+            "RunConfig",
+            "YOLO_WEIGHTS"
+          ]
+        },
+        {
+          "source": "ensemble.config_file",
+          "specifiers": [
+            "_format_value",
+            "load_config_file",
+            "render_banner",
+            "resolve"
+          ]
+        }
+      ],
+      "exports": [
+        "_bool_flag",
+        "build_parser",
+        "_default_field_values",
+        "_collect_cli_overrides",
+        "_resolve_config_path",
+        "parse_run_config",
+        "_timestamp",
+        "_default_run_name"
+      ],
+      "totalLines": 263,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/config_file.py": {
+      "filePath": "ensemble/config_file.py",
+      "contentHash": "c7ff9cc1476ba0574c5f4d2f4f4e46e85c873679065be8712e09d989cd60b408",
+      "functions": [
+        {
+          "name": "_as_float",
+          "params": [
+            "value"
+          ],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_as_int",
+          "params": [
+            "value"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_as_str",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_as_upper_str",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_as_path",
+          "params": [
+            "value"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_as_bool",
+          "params": [
+            "value"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_as_float_tuple",
+          "params": [
+            "value"
+          ],
+          "returnType": "tuple[float, ...]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_as_str_tuple",
+          "params": [
+            "value"
+          ],
+          "returnType": "tuple[str, ...]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "load_config_file",
+          "params": [
+            "path"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "_unknown_key_message",
+          "params": [
+            "key",
+            "path"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "resolve",
+          "params": [
+            "defaults",
+            "yaml_overrides",
+            "cli_overrides"
+          ],
+          "returnType": "tuple[dict[str, Any], list[Override]]",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "_format_value",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "render_banner",
+          "params": [
+            "config_path",
+            "overrides"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "classes": [
+        {
+          "name": "ConfigError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "FieldSpec",
+          "methods": [],
+          "properties": [
+            "field",
+            "yaml_key",
+            "coerce"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "Override",
+          "methods": [],
+          "properties": [
+            "field",
+            "yaml_key",
+            "value",
+            "source"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "difflib",
+          "specifiers": [
+            "difflib"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Callable"
+          ]
+        }
+      ],
+      "exports": [
+        "ConfigError",
+        "_as_float",
+        "_as_int",
+        "_as_str",
+        "_as_upper_str",
+        "_as_path",
+        "_as_bool",
+        "_as_float_tuple",
+        "_as_str_tuple",
+        "FieldSpec",
+        "load_config_file",
+        "_unknown_key_message",
+        "Override",
+        "resolve",
+        "_format_value",
+        "render_banner"
+      ],
+      "totalLines": 220,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/config.py": {
+      "filePath": "ensemble/config.py",
+      "contentHash": "58801548dde1ee2b71a1215b5fa5759d36f18f577be998b165c5f5df23a27506",
+      "functions": [
+        {
+          "name": "_has_model_dirs",
+          "params": [
+            "candidate"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_read_env_file",
+          "params": [
+            "path"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "_resolve_log_level",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "find_repo_root",
+          "params": [],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 30
+        }
+      ],
+      "classes": [
+        {
+          "name": "ModelSpec",
+          "methods": [],
+          "properties": [
+            "key",
+            "display_name"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "RunConfig",
+          "methods": [
+            "annotations_path",
+            "run_dir",
+            "predictions_dir",
+            "visualizations_dir",
+            "logs_dir"
+          ],
+          "properties": [
+            "dataset_dir",
+            "output_dir",
+            "device",
+            "batch_size",
+            "predict_threshold",
+            "wbf_iou",
+            "wbf_skip_box_thr",
+            "wbf_weights",
+            "skip_models",
+            "save_visualizations",
+            "dynamic_metrics",
+            "visualization_count",
+            "run_name",
+            "rfdetr_weights",
+            "yolo_weights",
+            "deimv2_weights",
+            "deimv2_config",
+            "deimv2_dir",
+            "yolo_iou_threshold",
+            "log_level",
+            "extra"
+          ],
+          "exported": true,
+          "lineCount": 44
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        }
+      ],
+      "exports": [
+        "_has_model_dirs",
+        "_read_env_file",
+        "_resolve_log_level",
+        "find_repo_root",
+        "ModelSpec",
+        "RunConfig"
+      ],
+      "totalLines": 208,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/data.py": {
+      "filePath": "ensemble/data.py",
+      "contentHash": "30fa1db415ee71a0c78afd1ce65d95f578b5840cdc442a8d9a15035a372b9da5",
+      "functions": [
+        {
+          "name": "load_coco",
+          "params": [
+            "annotations_path",
+            "images_dir"
+          ],
+          "returnType": "CocoBundle",
+          "exported": true,
+          "lineCount": 81
+        },
+        {
+          "name": "_build_targets",
+          "params": [
+            "coco",
+            "cat_id_to_class_idx"
+          ],
+          "returnType": "dict[int, sv.Detections]",
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "iter_batches",
+          "params": [
+            "records",
+            "batch_size"
+          ],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [
+        {
+          "name": "ImageRecord",
+          "methods": [],
+          "properties": [
+            "image_id",
+            "file_name",
+            "path",
+            "width",
+            "height"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "CocoBundle",
+          "methods": [
+            "num_classes",
+            "category_names"
+          ],
+          "properties": [
+            "annotations_path",
+            "raw",
+            "cat_id_to_class_idx",
+            "class_idx_to_cat_id",
+            "image_records",
+            "targets"
+          ],
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "supervision",
+          "specifiers": [
+            "sv"
+          ]
+        }
+      ],
+      "exports": [
+        "ImageRecord",
+        "CocoBundle",
+        "load_coco",
+        "_build_targets",
+        "iter_batches"
+      ],
+      "totalLines": 179,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/fusion.py": {
+      "filePath": "ensemble/fusion.py",
+      "contentHash": "94413c7273f09dbbb9cb3d08df57f032454396f5bc7fc516df50d10f6ad1dffe",
+      "functions": [
+        {
+          "name": "_normalize_xyxy",
+          "params": [
+            "xyxy",
+            "width",
+            "height"
+          ],
+          "returnType": "np.ndarray",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_denormalize_xyxy",
+          "params": [
+            "xyxy",
+            "width",
+            "height"
+          ],
+          "returnType": "np.ndarray",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "fuse_image",
+          "params": [
+            "image_id",
+            "width",
+            "height",
+            "predictions_by_model",
+            "weights",
+            "iou_thr",
+            "skip_box_thr"
+          ],
+          "returnType": "Prediction",
+          "exported": true,
+          "lineCount": 52
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "Mapping"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "ensemble_boxes",
+          "specifiers": [
+            "weighted_boxes_fusion"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction"
+          ]
+        }
+      ],
+      "exports": [
+        "_normalize_xyxy",
+        "_denormalize_xyxy",
+        "fuse_image"
+      ],
+      "totalLines": 87,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/metrics.py": {
+      "filePath": "ensemble/metrics.py",
+      "contentHash": "8b385bb42f25d7383db6ccfbda95438bd98ae48c49745f024e3c3da4be831f89",
+      "functions": [
+        {
+          "name": "predictions_to_coco_results",
+          "params": [
+            "predictions",
+            "class_idx_to_cat_id"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "_build_coco_eval",
+          "params": [
+            "bundle",
+            "coco_results"
+          ],
+          "returnType": "COCOeval | None",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "_precision_recall_at_best_f1",
+          "params": [
+            "coco_eval"
+          ],
+          "returnType": "tuple[float, float]",
+          "exported": true,
+          "lineCount": 56
+        },
+        {
+          "name": "evaluate",
+          "params": [
+            "predictions",
+            "bundle"
+          ],
+          "returnType": "EvalResult",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "write_coco_results_json",
+          "params": [
+            "coco_results",
+            "path"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "EvalResult",
+          "methods": [],
+          "properties": [
+            "precision",
+            "recall",
+            "map50",
+            "map50_95"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "contextlib"
+          ]
+        },
+        {
+          "source": "io",
+          "specifiers": [
+            "io"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "pycocotools.coco",
+          "specifiers": [
+            "COCO"
+          ]
+        },
+        {
+          "source": "pycocotools.cocoeval",
+          "specifiers": [
+            "COCOeval"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "CocoBundle"
+          ]
+        }
+      ],
+      "exports": [
+        "EvalResult",
+        "predictions_to_coco_results",
+        "_build_coco_eval",
+        "_precision_recall_at_best_f1",
+        "evaluate",
+        "write_coco_results_json"
+      ],
+      "totalLines": 187,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/pipeline.py": {
+      "filePath": "ensemble/pipeline.py",
+      "contentHash": "243ee5062daaa2fd966ad23e8d2912aa73c850667c13c063ee57a1dea14299b0",
+      "functions": [
+        {
+          "name": "_instantiate_adapter",
+          "params": [
+            "model_key",
+            "run"
+          ],
+          "returnType": "Adapter",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_run_inference",
+          "params": [
+            "adapter",
+            "bundle",
+            "batch_size"
+          ],
+          "returnType": "dict[int, Prediction]",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "_serialize_run_config",
+          "params": [
+            "run",
+            "bundle",
+            "output_path"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "_format_param",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_write_parameter_values",
+          "params": [
+            "run"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "_setup_logging",
+          "params": [
+            "run"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 36
+        },
+        {
+          "name": "run_pipeline",
+          "params": [
+            "run"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 89
+        },
+        {
+          "name": "_run_ensemble",
+          "params": [
+            "run",
+            "bundle",
+            "model_results",
+            "active_specs"
+          ],
+          "returnType": "tuple[EvalResult, dict[int, Prediction], Path]",
+          "exported": true,
+          "lineCount": 68
+        },
+        {
+          "name": "_write_summary_csv",
+          "params": [
+            "run",
+            "active_specs",
+            "model_results",
+            "ensemble_metrics"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "_write_visualizations",
+          "params": [
+            "run",
+            "bundle",
+            "model_results",
+            "ensemble_predictions"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 38
+        }
+      ],
+      "classes": [
+        {
+          "name": "ModelRunResult",
+          "methods": [],
+          "properties": [
+            "spec",
+            "predictions",
+            "metrics",
+            "coco_results_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "csv",
+          "specifiers": [
+            "csv"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "asdict",
+            "dataclass",
+            "fields"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "tqdm.auto",
+          "specifiers": [
+            "tqdm"
+          ]
+        },
+        {
+          "source": "ensemble.adapters",
+          "specifiers": [
+            "DEIMv2Adapter",
+            "RFDETRAdapter",
+            "YOLOAdapter"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Adapter",
+            "Prediction"
+          ]
+        },
+        {
+          "source": "ensemble.config",
+          "specifiers": [
+            "ENSEMBLE_DISPLAY_NAME",
+            "HARDCODED_METRICS",
+            "MODEL_SPECS",
+            "ModelSpec",
+            "RunConfig"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "CocoBundle",
+            "iter_batches",
+            "load_coco"
+          ]
+        },
+        {
+          "source": "ensemble.fusion",
+          "specifiers": [
+            "fuse_image"
+          ]
+        },
+        {
+          "source": "ensemble.metrics",
+          "specifiers": [
+            "EvalResult",
+            "evaluate",
+            "predictions_to_coco_results",
+            "write_coco_results_json"
+          ]
+        },
+        {
+          "source": "ensemble.visualize",
+          "specifiers": [
+            "select_visualization_records",
+            "write_combined_overlay",
+            "write_overlays"
+          ]
+        }
+      ],
+      "exports": [
+        "ModelRunResult",
+        "_instantiate_adapter",
+        "_run_inference",
+        "_serialize_run_config",
+        "_format_param",
+        "_write_parameter_values",
+        "_setup_logging",
+        "run_pipeline",
+        "_run_ensemble",
+        "_write_summary_csv",
+        "_write_visualizations"
+      ],
+      "totalLines": 442,
+      "hasStructuralAnalysis": true
+    },
+    "ensemble/visualize.py": {
+      "filePath": "ensemble/visualize.py",
+      "contentHash": "b82d5ed1ff95b3e83768d63a414fcf0df15b441aa107014bec0efffa08748a67",
+      "functions": [
+        {
+          "name": "select_visualization_records",
+          "params": [
+            "image_records",
+            "targets",
+            "count"
+          ],
+          "returnType": "list[ImageRecord]",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "_to_detections",
+          "params": [
+            "prediction",
+            "top_k"
+          ],
+          "returnType": "sv.Detections",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "_annotators_for",
+          "params": [
+            "model_key"
+          ],
+          "returnType": "tuple[sv.BoxAnnotator, sv.LabelAnnotator]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_annotate",
+          "params": [
+            "image",
+            "detections",
+            "class_names",
+            "model_key",
+            "include_labels"
+          ],
+          "returnType": "np.ndarray",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "write_overlays",
+          "params": [
+            "record",
+            "predictions",
+            "class_names",
+            "output_dir",
+            "top_k"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "write_combined_overlay",
+          "params": [
+            "record",
+            "predictions",
+            "class_names",
+            "output_dir",
+            "top_k"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 34
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "numpy",
+          "specifiers": [
+            "np"
+          ]
+        },
+        {
+          "source": "supervision",
+          "specifiers": [
+            "sv"
+          ]
+        },
+        {
+          "source": "PIL",
+          "specifiers": [
+            "Image"
+          ]
+        },
+        {
+          "source": "ensemble.adapters.base",
+          "specifiers": [
+            "Prediction"
+          ]
+        },
+        {
+          "source": "ensemble.data",
+          "specifiers": [
+            "ImageRecord"
+          ]
+        }
+      ],
+      "exports": [
+        "select_visualization_records",
+        "_to_detections",
+        "_annotators_for",
+        "_annotate",
+        "write_overlays",
+        "write_combined_overlay"
+      ],
+      "totalLines": 164,
+      "hasStructuralAnalysis": true
+    },
+    "main.py": {
+      "filePath": "main.py",
+      "contentHash": "24d8db5ce294c808d56c5422d500ebe93de963bd892a436e6fbf16e465c03e25",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "ensemble.cli",
+          "specifiers": [
+            "parse_run_config"
+          ]
+        },
+        {
+          "source": "ensemble.config_file",
+          "specifiers": [
+            "ConfigError"
+          ]
+        },
+        {
+          "source": "ensemble.pipeline",
+          "specifiers": [
+            "run_pipeline"
+          ]
+        }
+      ],
+      "exports": [
+        "main"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "requirements.txt": {
+      "filePath": "requirements.txt",
+      "contentHash": "4f60b6c543eb6177f546787ab951609479df8940b45fdb6babd57fe054578a64",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 22,
+      "hasStructuralAnalysis": false
+    },
+    "tests/test_cli_config.py": {
+      "filePath": "tests/test_cli_config.py",
+      "contentHash": "a8971288e06ad0d4d71af57f019fb659cea2e522505a1160a9f61638bb4f2c7b",
+      "functions": [
+        {
+          "name": "_cfg",
+          "params": [
+            "tmp_path",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_yaml_overrides_applied",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "test_cli_flag_beats_yaml",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_yaml_beats_default_untouched_keys_keep_default",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "test_extra_records_config_path_and_sources",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "test_no_config_uses_defaults",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_unknown_yaml_key_raises",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_no_visualizations_flag_is_an_override",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_save_visualizations_true_by_default",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "test_banner_is_printed",
+          "params": [
+            "tmp_path",
+            "capsys"
+          ],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "pytest",
+          "specifiers": [
+            "pytest"
+          ]
+        },
+        {
+          "source": "ensemble.cli",
+          "specifiers": [
+            "parse_run_config"
+          ]
+        },
+        {
+          "source": "ensemble.config",
+          "specifiers": [
+            "DEFAULT_WBF_IOU",
+            "DEFAULT_WBF_SKIP_BOX_THR",
+            "DEFAULT_YOLO_IOU_THRESHOLD"
+          ]
+        },
+        {
+          "source": "ensemble.config_file",
+          "specifiers": [
+            "ConfigError"
+          ]
+        }
+      ],
+      "exports": [
+        "_cfg",
+        "test_yaml_overrides_applied",
+        "test_cli_flag_beats_yaml",
+        "test_yaml_beats_default_untouched_keys_keep_default",
+        "test_extra_records_config_path_and_sources",
+        "test_no_config_uses_defaults",
+        "test_unknown_yaml_key_raises",
+        "test_no_visualizations_flag_is_an_override",
+        "test_save_visualizations_true_by_default",
+        "test_banner_is_printed"
+      ],
+      "totalLines": 84,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_config_file.py": {
+      "filePath": "tests/test_config_file.py",
+      "contentHash": "4964a1afb1ce8d2c84b56cc3a335ccc18455f00f2b8b5fa8e2a20215882588ec",
+      "functions": [
+        {
+          "name": "_write",
+          "params": [
+            "tmp_path",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_load_coerces_known_keys_to_runconfig_fields",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "test_unknown_key_raises_with_suggestion",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "test_empty_file_returns_empty_dict",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "test_missing_file_raises",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "test_non_mapping_content_raises",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_bad_value_type_raises_naming_key",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_full_key_parity_coercions",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "test_resolve_precedence_cli_over_yaml_over_default",
+          "params": [],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "test_resolve_no_overrides_is_empty_list",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_render_banner_lists_overrides_with_sources",
+          "params": [],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "test_render_banner_no_config_no_overrides",
+          "params": [],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_render_banner_formats_tuple_value",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "pytest",
+          "specifiers": [
+            "pytest"
+          ]
+        },
+        {
+          "source": "ensemble.config_file",
+          "specifiers": [
+            "ConfigError",
+            "Override",
+            "load_config_file",
+            "render_banner",
+            "resolve"
+          ]
+        }
+      ],
+      "exports": [
+        "_write",
+        "test_load_coerces_known_keys_to_runconfig_fields",
+        "test_unknown_key_raises_with_suggestion",
+        "test_empty_file_returns_empty_dict",
+        "test_missing_file_raises",
+        "test_non_mapping_content_raises",
+        "test_bad_value_type_raises_naming_key",
+        "test_full_key_parity_coercions",
+        "test_resolve_precedence_cli_over_yaml_over_default",
+        "test_resolve_no_overrides_is_empty_list",
+        "test_render_banner_lists_overrides_with_sources",
+        "test_render_banner_no_config_no_overrides",
+        "test_render_banner_formats_tuple_value"
+      ],
+      "totalLines": 167,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_main_config_error.py": {
+      "filePath": "tests/test_main_config_error.py",
+      "contentHash": "69ac73b9865dd2901a413cfc6776191f9b49b1b279abf597a8faefdc4f52963d",
+      "functions": [
+        {
+          "name": "test_main_exits_2_on_bad_config",
+          "params": [
+            "tmp_path",
+            "monkeypatch",
+            "capsys"
+          ],
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "main_module"
+          ]
+        }
+      ],
+      "exports": [
+        "test_main_exits_2_on_bad_config"
+      ],
+      "totalLines": 20,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_pipeline_config.py": {
+      "filePath": "tests/test_pipeline_config.py",
+      "contentHash": "86eca887e9c8d3ab9a7354d070a7997bd87077aa10063d6e911a558a0416b2b4",
+      "functions": [
+        {
+          "name": "_fake_bundle",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "test_run_json_records_config_provenance",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "test_run_json_records_null_config_when_defaults",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "types",
+          "specifiers": [
+            "SimpleNamespace"
+          ]
+        },
+        {
+          "source": "ensemble.cli",
+          "specifiers": [
+            "parse_run_config"
+          ]
+        },
+        {
+          "source": "ensemble.pipeline",
+          "specifiers": [
+            "_serialize_run_config"
+          ]
+        }
+      ],
+      "exports": [
+        "_fake_bundle",
+        "test_run_json_records_config_provenance",
+        "test_run_json_records_null_config_when_defaults"
+      ],
+      "totalLines": 43,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_summary_and_params.py": {
+      "filePath": "tests/test_summary_and_params.py",
+      "contentHash": "970097858da49e0f69542e4efbf3dc98c1dcc6a455bb06698cb4bc6a0ef98fc6",
+      "functions": [
+        {
+          "name": "_run",
+          "params": [
+            "tmp_path",
+            "argv"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_model_results",
+          "params": [],
+          "returnType": "dict[str, ModelRunResult]",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_read_rows",
+          "params": [
+            "csv_path"
+          ],
+          "returnType": "list[list[str]]",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_ensemble_metrics",
+          "params": [],
+          "returnType": "EvalResult",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "test_summary_dynamic_uses_computed_metrics_one_row_each",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "test_summary_hardcoded_when_disabled",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "test_ensemble_row_always_computed_even_when_disabled",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "test_run_name_follows_config_stem",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "test_explicit_run_name_beats_config_naming",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_yaml_run_name_beats_config_naming",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "test_no_config_keeps_default_run_name",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "test_parameter_values_records_all_fields_with_sources",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "test_parameter_values_no_config_marks_builtin",
+          "params": [
+            "tmp_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "csv",
+          "specifiers": [
+            "csv"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "ensemble.cli",
+          "specifiers": [
+            "parse_run_config"
+          ]
+        },
+        {
+          "source": "ensemble.config",
+          "specifiers": [
+            "HARDCODED_METRICS",
+            "MODEL_SPECS"
+          ]
+        },
+        {
+          "source": "ensemble.metrics",
+          "specifiers": [
+            "EvalResult"
+          ]
+        },
+        {
+          "source": "ensemble.pipeline",
+          "specifiers": [
+            "ModelRunResult",
+            "_write_parameter_values",
+            "_write_summary_csv"
+          ]
+        }
+      ],
+      "exports": [
+        "_run",
+        "_model_results",
+        "_read_rows",
+        "_ensemble_metrics",
+        "test_summary_dynamic_uses_computed_metrics_one_row_each",
+        "test_summary_hardcoded_when_disabled",
+        "test_ensemble_row_always_computed_even_when_disabled",
+        "test_run_name_follows_config_stem",
+        "test_explicit_run_name_beats_config_naming",
+        "test_yaml_run_name_beats_config_naming",
+        "test_no_config_keeps_default_run_name",
+        "test_parameter_values_records_all_fields_with_sources",
+        "test_parameter_values_no_config_marks_builtin"
+      ],
+      "totalLines": 159,
+      "hasStructuralAnalysis": true
+    },
+    "todo.txt": {
+      "filePath": "todo.txt",
+      "contentHash": "b1464baa1f96665c870128abde199fc6b1318f71e807734d0aa017f0ae5eac67",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    }
+  }
+}

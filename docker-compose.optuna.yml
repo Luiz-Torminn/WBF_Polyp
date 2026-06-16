@@ -1,0 +1,28 @@
+services:
+  optuna-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: optuna_db
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - optuna-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d optuna_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  optuna-dashboard:
+    image: ghcr.io/optuna/optuna-dashboard
+    command: postgresql+psycopg2://postgres:postgres@optuna-db:5432/optuna_db
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      optuna-db:
+        condition: service_healthy
+
+volumes:
+  optuna-db-data:

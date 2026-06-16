@@ -9,6 +9,11 @@
   Sandro e Michel --> Continuidade artigo projeto passado
   Luiz, Cleiver e Guilherme --> Artigo sobre detecção e tracking de objetos traduzido para uma linguagem e abordagem mais clinica/medica 
 
+
+[ OK ] Enable fix hardcoded values for final `.csv` file - for better comparisons with our best models 
+
+[ OK ] Enhance output directory naming to include config file name and add parameter values used to final directory for better organization and tracking of results 
+
 [  ] Add conf_type="box_and_model_avg" in `ensemble/fusion.py:weighted_boxes_fusion()`
 
 [  ] Grid search para encontrar os melhores valores para os parametros nos diferentes perfis
