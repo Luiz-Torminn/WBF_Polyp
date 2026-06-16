@@ -137,7 +137,7 @@ def _setup_logging(run: RunConfig) -> Path:
     root = logging.getLogger("ensemble")
     root.setLevel(level_value)
     if not any(
-        isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path)
+        isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path.resolve())
         for h in root.handlers
     ):
         file_handler = logging.FileHandler(log_path)
