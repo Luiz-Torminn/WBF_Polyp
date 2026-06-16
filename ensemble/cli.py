@@ -21,6 +21,7 @@ from ensemble.config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_DIR,
     DEFAULT_DEVICE,
+    DEFAULT_DYNAMIC_METRICS,
     DEFAULT_LOG_LEVEL,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_PREDICT_THRESHOLD,
@@ -41,6 +42,18 @@ from ensemble.config_file import _format_value, load_config_file, render_banner,
 # Sentinel marking "flag not supplied on the command line".
 _UNSET: Any = object()
 
+
+def _bool_flag(value: str) -> bool:
+    """Parse a ``true``/``false`` CLI value (case-insensitive)."""
+    normalized = str(value).strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise argparse.ArgumentTypeError(
+        f"expected 'true' or 'false', got {value!r}"
+    )
+
 # Maps an argparse dest to (RunConfig field, transform-from-argparse-value).
 _CLI_FIELD_MAP: dict[str, tuple[str, Any]] = {
     "dataset": ("dataset_dir", lambda v: v),
@@ -53,6 +66,7 @@ _CLI_FIELD_MAP: dict[str, tuple[str, Any]] = {
     "yolo_iou": ("yolo_iou_threshold", lambda v: v),
     "weights": ("wbf_weights", tuple),
     "skip_models": ("skip_models", tuple),
+    "dynamic_metrics": ("dynamic_metrics", lambda v: v),
     "visualization_count": ("visualization_count", lambda v: v),
     "run_name": ("run_name", lambda v: v),
     "rfdetr_weights": ("rfdetr_weights", lambda v: v),
@@ -125,6 +139,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip one or more standalone models; ensemble requires at least 2 active.",
     )
     parser.add_argument(
+        "--dynamic-metrics", type=_bool_flag, metavar="true|false", default=_UNSET,
+        help=(
+            "Compute the summary.csv standalone-model rows from this run "
+            f"(default {str(DEFAULT_DYNAMIC_METRICS).lower()}). Set to false to "
+            "emit the published HARDCODED_METRICS instead. The ENSEMBLE row is "
+            "always computed."
+        ),
+    )
+    parser.add_argument(
         "--no-visualizations", action="store_const", const=True, default=None,
         help="Disable per-image overlay rendering.",
     )
@@ -155,6 +178,7 @@ def _default_field_values() -> dict[str, Any]:
         "wbf_weights": tuple(1.0 for _ in MODEL_SPECS),
         "skip_models": (),
         "save_visualizations": True,
+        "dynamic_metrics": DEFAULT_DYNAMIC_METRICS,
         "visualization_count": DEFAULT_VISUALIZATION_COUNT,
         "run_name": _default_run_name(),
         "rfdetr_weights": RFDETR_WEIGHTS,
@@ -201,6 +225,13 @@ def parse_run_config(argv: list[str] | None = None) -> RunConfig:
     cli_overrides = _collect_cli_overrides(args)
     final, overrides = resolve(_default_field_values(), yaml_overrides, cli_overrides)
 
+    # When a config file drives the run and the user did not explicitly set a
+    # run name (CLI or YAML), name the output folder after the config file:
+    # ``{config_stem}_{timestamp}``. An explicit run_name always wins.
+    run_name_overridden = any(o.field == "run_name" for o in overrides)
+    if config_path is not None and not run_name_overridden:
+        final["run_name"] = f"{config_path.stem}_{_timestamp()}"
+
     override_summary = [
         {
             "field": o.field,
@@ -223,5 +254,9 @@ def parse_run_config(argv: list[str] | None = None) -> RunConfig:
     )
 
 
+def _timestamp() -> str:
+    return dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
 def _default_run_name() -> str:
-    return dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_ensemble"
+    return _timestamp() + "_ensemble"
