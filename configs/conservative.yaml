@@ -1,0 +1,7 @@
+# Conservative profile — higher precision, lower recall (fewer detections).
+
+predict_threshold: 0.001
+wbf_iou: 0.7 # Se diminuir, cai no mesmo cluster?
+wbf_skip_box: 0.5
+yolo_iou: 0.75
+weights: [1.0, 1.0, 1.0]

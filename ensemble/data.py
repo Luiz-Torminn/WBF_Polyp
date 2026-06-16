@@ -7,11 +7,14 @@ exactly the same image manifest and category indexing each upstream eval uses.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import supervision as sv
+
+logger = logging.getLogger("ensemble.data")
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,54 @@ def load_coco(annotations_path: Path, images_dir: Path) -> CocoBundle:
         )
 
     targets = _build_targets(coco, cat_id_to_class_idx)
+
+    if logger.isEnabledFor(logging.DEBUG):
+        annotations = coco.get("annotations", [])
+        per_image_gt = [len(targets[record.image_id]) for record in image_records]
+        empty_images = sum(1 for count in per_image_gt if count == 0)
+        logger.debug(
+            "load_coco: file=%s images=%d annotations=%d categories=%d empty_images=%d",
+            annotations_path,
+            len(image_records),
+            len(annotations),
+            len(cat_id_to_class_idx),
+            empty_images,
+        )
+        logger.debug(
+            "load_coco: per-image GT count min=%d max=%d mean=%.2f",
+            min(per_image_gt) if per_image_gt else 0,
+            max(per_image_gt) if per_image_gt else 0,
+            (sum(per_image_gt) / len(per_image_gt)) if per_image_gt else 0.0,
+        )
+        logger.debug(
+            "load_coco: category map (cat_id -> class_idx) = %s",
+            cat_id_to_class_idx,
+        )
+        for rec in image_records[:3]:
+            logger.debug(
+                "  sample image: id=%d name=%s size=%dx%d path=%s",
+                rec.image_id,
+                rec.file_name,
+                rec.width,
+                rec.height,
+                rec.path,
+            )
+        for rec in image_records[:3]:
+            target = targets[rec.image_id]
+            if len(target) == 0:
+                logger.debug("  sample target image_id=%d: <empty>", rec.image_id)
+                continue
+            xyxy_first = target.xyxy[0]
+            logger.debug(
+                "  sample target image_id=%d: count=%d first_xyxy=[%.1f, %.1f, %.1f, %.1f] first_class=%d",
+                rec.image_id,
+                len(target),
+                float(xyxy_first[0]),
+                float(xyxy_first[1]),
+                float(xyxy_first[2]),
+                float(xyxy_first[3]),
+                int(target.class_id[0]),
+            )
 
     return CocoBundle(
         annotations_path=annotations_path,

@@ -1,0 +1,52 @@
+# =============================================================================
+# Ensemble pipeline — example config (MASK)
+# =============================================================================
+# Copy this file and uncomment only the keys you want to override. Anything you
+# leave commented falls back to the config.py default.
+#
+# Resolution order (last wins):
+#     config.py default  ->  this YAML file  ->  explicit CLI flag
+#
+# Usage:
+#     python main.py --config configs/example_config.yaml
+#     python main.py --config configs/aggressive.yaml --wbf-iou 0.6   # CLI wins
+#
+# A bare filename is also resolved under configs/, so these are equivalent:
+#     python main.py --config aggressive.yaml
+#     python main.py --config configs/aggressive.yaml
+#
+# Validation is strict: an unknown key or a wrong-type value aborts the run
+# before any inference. On startup a banner prints exactly which keys were
+# overridden and where each value came from ([yaml] / [cli]).
+#
+# The values shown below are the current config.py defaults.
+# -----------------------------------------------------------------------------
+
+# --- Detection / fusion knobs (these define a "profile") ----------------------
+# predict_threshold: 0.001   # per-model inference score threshold (keep tiny so
+#                            # the full PR curve survives for mAP)
+# wbf_iou: 0.7               # IoU above which WBF treats boxes as the same object
+# wbf_skip_box: 0.5          # drop boxes below this score before fusion
+# yolo_iou: 0.75             # Ultralytics NMS IoU for YOLO inference; HIGH = looser
+#                            # NMS, more candidates survive into WBF (0.7 = stock)
+# weights: [1.0, 1.0, 1.0]   # WBF per-model weights, order: RFDETR YOLO DEIMv2
+
+# --- Run / data ---------------------------------------------------------------
+# dataset: /path/to/COCO/.../test   # COCO test split dir (has _annotations.coco.json)
+# output_dir: .outputs              # where run artifacts are written
+# device: cuda:0                    # torch device
+# batch_size: 8                     # inference batch size
+# run_name: my_experiment           # default: <timestamp>_ensemble
+# log_level: INFO                   # DEBUG / INFO / WARNING / ERROR
+
+# --- Standalone models / visualizations ---------------------------------------
+# skip_models: [yolo]               # skip standalone models (ensemble needs >= 2)
+# save_visualizations: true         # render per-image overlays
+# visualization_count: 8            # how many images to visualize
+
+# --- Weight / config paths (default to the in-repo layout) --------------------
+# rfdetr_weights: RFDETR/rfdetr_nano.pth
+# yolo_weights:   YOLO_model/yolo12n_ZScan2_ZScanKCLG_normais-80_10_10.pt
+# deimv2_weights: DEIMv2/deimv2_pico.pth
+# deimv2_config:  DEIMv2/deimv2_hgnetv2_pico_coco.yml
+# deimv2_dir:     DEIMv2

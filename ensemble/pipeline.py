@@ -33,7 +33,11 @@ from ensemble.metrics import (
     predictions_to_coco_results,
     write_coco_results_json,
 )
-from ensemble.visualize import select_visualization_records, write_overlays
+from ensemble.visualize import (
+    select_visualization_records,
+    write_combined_overlay,
+    write_overlays,
+)
 
 logger = logging.getLogger("ensemble.pipeline")
 
@@ -56,6 +60,7 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
         return YOLOAdapter(
             weights_path=run.yolo_weights,
             predict_threshold=run.predict_threshold,
+            iou_threshold=run.yolo_iou_threshold,
             yolo_dir=run.yolo_weights.parent,
         )
     if model_key == "deimv2":
@@ -68,7 +73,9 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
     raise ValueError(f"Unknown model key: {model_key!r}")
 
 
-def _run_inference(adapter: Adapter, bundle: CocoBundle, batch_size: int) -> dict[int, Prediction]:
+def _run_inference(
+    adapter: Adapter, bundle: CocoBundle, batch_size: int
+) -> dict[int, Prediction]:
     predictions: dict[int, Prediction] = {}
     for batch in tqdm(
         list(iter_batches(bundle.image_records, batch_size)),
@@ -80,7 +87,9 @@ def _run_inference(adapter: Adapter, bundle: CocoBundle, batch_size: int) -> dic
     return predictions
 
 
-def _serialize_run_config(run: RunConfig, bundle: CocoBundle, output_path: Path) -> None:
+def _serialize_run_config(
+    run: RunConfig, bundle: CocoBundle, output_path: Path
+) -> None:
     snapshot = {
         "dataset_dir": str(run.dataset_dir),
         "annotations_path": str(run.annotations_path),
@@ -92,6 +101,8 @@ def _serialize_run_config(run: RunConfig, bundle: CocoBundle, output_path: Path)
         "wbf_iou": run.wbf_iou,
         "wbf_skip_box_thr": run.wbf_skip_box_thr,
         "wbf_weights": list(run.wbf_weights),
+        "yolo_iou_threshold": run.yolo_iou_threshold,
+        "log_level": run.log_level,
         "skip_models": list(run.skip_models),
         "save_visualizations": run.save_visualizations,
         "visualization_count": run.visualization_count,
@@ -103,6 +114,8 @@ def _serialize_run_config(run: RunConfig, bundle: CocoBundle, output_path: Path)
         "num_images": len(bundle.image_records),
         "num_classes": bundle.num_classes,
         "class_names": bundle.category_names,
+        "config_path": run.extra.get("config_path"),
+        "config_overrides": run.extra.get("config_overrides", []),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as handle:
@@ -113,15 +126,35 @@ def _setup_logging(run: RunConfig) -> Path:
     run.logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = run.logs_dir / "pipeline.log"
 
+    # ``getLevelName`` of an unknown string returns "Level <name>" rather than
+    # raising; guard against that so a typo in LOG_LEVEL falls back to INFO
+    # and surfaces a warning instead of silently disabling logging.
+    level_value = logging.getLevelName(run.log_level)
+    if not isinstance(level_value, int):
+        logger.warning("Unknown log level %r, falling back to INFO", run.log_level)
+        level_value = logging.INFO
+
     root = logging.getLogger("ensemble")
-    root.setLevel(logging.INFO)
-    if not any(isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path) for h in root.handlers):
+    root.setLevel(level_value)
+    if not any(
+        isinstance(h, logging.FileHandler) and h.baseFilename == str(log_path.resolve())
+        for h in root.handlers
+    ):
         file_handler = logging.FileHandler(log_path)
-        file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        file_handler.setLevel(level_value)
         root.addHandler(file_handler)
-    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in root.handlers):
+    if not any(
+        isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        for h in root.handlers
+    ):
         stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(logging.Formatter("[%(levelname)s] %(name)s: %(message)s"))
+        stream_handler.setFormatter(
+            logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
+        )
+        stream_handler.setLevel(level_value)
         root.addHandler(stream_handler)
 
     return log_path
@@ -132,6 +165,12 @@ def run_pipeline(run: RunConfig) -> Path:
     log_path = _setup_logging(run)
     logger.info("Run directory: %s", run.run_dir)
     logger.info("Log file: %s", log_path)
+
+    # Mirror the startup config banner into the log file for reproducibility.
+    banner = run.extra.get("config_banner")
+    if banner:
+        for line in banner.splitlines():
+            logger.info("%s", line)
 
     bundle = load_coco(run.annotations_path, run.dataset_dir)
     logger.info(
@@ -159,7 +198,9 @@ def run_pipeline(run: RunConfig) -> Path:
         finally:
             adapter.unload()
 
-        coco_results = predictions_to_coco_results(predictions, bundle.class_idx_to_cat_id)
+        coco_results = predictions_to_coco_results(
+            predictions, bundle.class_idx_to_cat_id
+        )
         coco_path = run.predictions_dir / f"predictions_{spec.key}.json"
         write_coco_results_json(coco_results, coco_path)
         logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
@@ -256,10 +297,14 @@ def _run_ensemble(
             skip_box_thr=run.wbf_skip_box_thr,
         )
 
-    coco_results = predictions_to_coco_results(ensemble_predictions, bundle.class_idx_to_cat_id)
+    coco_results = predictions_to_coco_results(
+        ensemble_predictions, bundle.class_idx_to_cat_id
+    )
     ensemble_path = run.predictions_dir / "predictions_ensemble.json"
     write_coco_results_json(coco_results, ensemble_path)
-    logger.info("Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path)
+    logger.info(
+        "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
+    )
 
     ensemble_metrics = evaluate(ensemble_predictions, bundle)
     logger.info(
@@ -335,6 +380,12 @@ def _write_visualizations(
             record.image_id, Prediction.empty(record.image_id)
         )
         write_overlays(
+            record=record,
+            predictions=per_model,
+            class_names=bundle.category_names,
+            output_dir=run.visualizations_dir,
+        )
+        write_combined_overlay(
             record=record,
             predictions=per_model,
             class_names=bundle.category_names,

@@ -1,0 +1,8 @@
+# Aggressive profile — higher recall, lower precision (more detections, more
+# false positives)
+#
+predict_threshold: 0.001
+wbf_iou: 0.15
+wbf_skip_box: 0.1
+yolo_iou: 0.95
+weights: [1.0, 1.0, 1.0]

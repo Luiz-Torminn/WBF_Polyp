@@ -9,13 +9,16 @@ so variable-sized last batches don't trip the compiled graph, then call
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-from ensemble.adapters.base import Prediction
+from ensemble.adapters.base import Prediction, log_batch_predictions
 from ensemble.data import ImageRecord
+
+logger = logging.getLogger("ensemble.adapters.rfdetr")
 
 
 class RFDETRAdapter:
@@ -26,6 +29,7 @@ class RFDETRAdapter:
         self._weights_path = Path(weights_path)
         self._predict_threshold = float(predict_threshold)
         self._model = None
+        self._first_batch_logged = False
 
     def load(self, device: str) -> None:
         if self._model is not None:
@@ -39,6 +43,13 @@ class RFDETRAdapter:
         # selection. compile=False avoids retracing on variable batch sizes.
         self._model = RFDETRNano(pretrain_weights=str(self._weights_path))
         self._model.optimize_for_inference(compile=False)
+        self._first_batch_logged = False
+        logger.debug(
+            "loaded weights=%s device=%s threshold=%.4f",
+            self._weights_path,
+            device,
+            self._predict_threshold,
+        )
 
     def infer_batch(self, batch: list[ImageRecord]) -> list[Prediction]:
         if self._model is None:
@@ -66,6 +77,13 @@ class RFDETRAdapter:
                     class_ids=np.asarray(detections.class_id, dtype=np.int64),
                 )
             )
+
+        log_batch_predictions(
+            "rfdetr",
+            predictions,
+            include_samples=not self._first_batch_logged,
+        )
+        self._first_batch_logged = True
         return predictions
 
     def unload(self) -> None:

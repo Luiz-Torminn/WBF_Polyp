@@ -139,8 +139,19 @@ Most-used flags:
 - `--batch-size int` – default 8.
 - `--predict-threshold float` – per-model score threshold applied during
   inference. Default `0.001` (matches RFDETR/YOLO native conventions).
-- `--wbf-iou float` – default `0.5`.
-- `--wbf-skip-box float` – default `0.0001`.
+- `--wbf-iou float` – default `0.7`.
+- `--wbf-skip-box float` – default `0.25`.
+- `--yolo-iou float` – Ultralytics NMS IoU threshold applied during the
+  ensemble's YOLO inference. **High value = looser NMS, more candidates
+  survive into WBF.** Default `0.99` (effectively disables YOLO-side
+  dedup so WBF can do it instead). Set to `0.7` to reproduce
+  `YOLO_model/main.py`. Lower values are MORE aggressive NMS, not less.
+- `--log-level {DEBUG|INFO|WARNING|ERROR}` – verbosity for the
+  `ensemble.*` loggers. Resolved at startup in this order: process env
+  `LOG_LEVEL` → project-local `.env` file `LOG_LEVEL=…` → CLI default
+  (`INFO`). `DEBUG` enables per-batch detection summaries, sample
+  detections (top-5 by score) from each adapter's first batch, and a
+  manifest summary from the COCO loader.
 - `--weights w1 w2 w3` – WBF per-model weights, ordered RFDETR YOLO DEIMv2.
   Default: equal `[1, 1, 1]`.
 - `--skip-models {rfdetr|yolo|deimv2}+` – drop one or more models from the
@@ -188,6 +199,10 @@ height)` so adapters always have the original size on hand.
   back keyed by image and can be aligned with the COCO `image_id`. The
   native `model.val(...)` flow in `YOLO_model/main.py` is intentionally
   preserved and is the source of the cross-check report (not of the CSV).
+- `iou_threshold` (the Ultralytics `iou` arg for NMS) is wired to
+  `RunConfig.yolo_iou_threshold` / `--yolo-iou`. Default `0.99` so
+  YOLO-side NMS is effectively a no-op and WBF gets a rich candidate set.
+  See §13 for the inversion gotcha (low iou = MORE aggressive NMS).
 - Stale editable install workaround: the adapter injects
   `YOLO_model/` on `sys.path` before `import ultralytics`. The
   `__editable___ultralytics_*_finder.py` shipped with the conda env points
@@ -218,6 +233,23 @@ height)` so adapters always have the original size on hand.
   (`bbox_pred *= orig_target_sizes.repeat(1, 2).unsqueeze(1)`). Boxes
   returned by the postprocessor are already in xyxy pixel space on the
   original image.
+- Candidate budget per image is capped by `num_queries × num_classes`
+  (`DEIMv2/engine/deim/postprocessor.py:59`, `torch.topk(..., num_top_queries)`).
+  For the polyp dataset (`num_classes=1`) the effective ceiling is
+  `num_queries`. The leaf config `deimv2_hgnetv2_pico_coco.yml` ships with
+  both set to `200`, so DEIMv2 hands WBF up to 200 detections per image
+  vs. RFDETR's 300 and YOLO's `max_det` (300 with NMS effectively off).
+  Raising `num_top_queries` above `num_queries × num_classes` will throw
+  `RuntimeError: selected index k out of range` at first inference.
+
+### Adapter logging
+- All three adapters share `ensemble.adapters.base.log_batch_predictions(...)`.
+  At DEBUG level it emits one line per batch with detection count and
+  score min/mean/max, plus the top-5 detections (by score) from the first
+  batch only — keeps the `pipeline.log` readable on the 1624-image split.
+- Each adapter holds a `_first_batch_logged` flag flipped after the first
+  call to `infer_batch`; samples are dumped only on that first call per
+  adapter run.
 
 ## 8. Weighted Box Fusion Integration
 
@@ -251,14 +283,26 @@ standalone rows AND the ensemble row.
 3. `COCOeval(gt, dt, 'bbox')` runs `evaluate()` then `accumulate()` over
    all image ids in the GT. `summarize()` produces the canonical 12 stats.
 4. `stats[1]` is taken as `MAP 50` and `stats[0]` as `MAP 50-95`.
-5. `_precision_recall_at_best_f1(coco_eval)` reads
-   `coco_eval.eval['precision']` (shape `(T, R, K, A, M)` per pycocotools),
-   takes IoU index `T=0` (IoU=0.50), area index `A=0` (all areas),
-   max-detections index `M=-1` (largest cap, 100 for default COCO params),
-   averages precision across classes, builds the P/R curve over the 101
-   COCO recall thresholds, and picks the (P, R) point at maximum F1. This
-   matches Ultralytics' best-F1 convention so YOLO's CSV row stays
-   directly comparable to a `model.val(...)` report.
+5. `_precision_recall_at_best_f1(coco_eval)` walks the **raw**
+   `coco_eval.evalImgs` list (one entry per `imgId × catId × areaRng × maxDet`),
+   filters to `areaRng='all'` and `maxDet=params.maxDets[-1]` (100, the cap
+   used for mAP), and pulls per-detection `(score, TP@IoU=0.50, ignore)`
+   triples plus the non-ignored GT count. Detections are sorted by
+   descending score; cumulative TP/FP build precision and recall curves at
+   **detection resolution**, and `F1 = 2PR/(P+R)` is argmaxed to pick the
+   operating point. P and R are written into the CSV as continuous floats —
+   neither is snapped to the 101-point `recThrs` grid.
+
+   This is intentionally NOT the matrix-based shortcut
+   (`coco_eval.eval['precision'][T,R,K,A,M]`) — that path was the original
+   implementation, and it silently quantized Recall to multiples of 0.01
+   because the R axis is the fixed `params.recThrs` grid. The evalImgs
+   walk is what Ultralytics' `ap_per_class` does conceptually (modulo a
+   1000-point conf grid + EMA `smooth(..., 0.1)` they apply before
+   argmax — see `YOLO_model/ultralytics/utils/metrics.py:839-840`). The
+   only remaining methodological gap between our Recall and Ultralytics'
+   `box.mr` is that smoothing pass; numbers usually agree within a few
+   thousandths.
 
 Why this evaluator and not each model's native one:
 
@@ -280,19 +324,30 @@ For every run the pipeline writes:
 ```
 .outputs/<run_name>/
 ├── run.json                       resolved RunConfig snapshot (paths,
-│                                  thresholds, WBF params, env, num images)
+│                                  thresholds, WBF params, yolo_iou,
+│                                  log_level, env, num images)
 ├── summary.csv                    Modelo,Precisão,Recall,MAP 50,MAP 50-95
+│                                  (Recall is continuous — see §9)
 ├── predictions_rfdetr.json        COCO results list
 ├── predictions_yolo.json
 ├── predictions_deimv2.json
 ├── predictions_ensemble.json
 ├── visualizations/                per-image supervision overlays
-│   ├── <image_stem>_rfdetr.jpg
-│   ├── <image_stem>_yolo.jpg
-│   ├── <image_stem>_deimv2.jpg
-│   └── <image_stem>_ensemble.jpg
-└── logs/pipeline.log              full INFO-level log
+│   ├── <image_stem>_rfdetr.jpg      blue boxes
+│   ├── <image_stem>_yolo.jpg        green boxes
+│   ├── <image_stem>_deimv2.jpg      amber boxes
+│   ├── <image_stem>_ensemble.jpg    red boxes (thicker stroke)
+│   └── <image_stem>_combined.jpg    all four overlaid in their colors;
+│                                    per-model layers drawn thin without
+│                                    labels, ensemble drawn thick with
+│                                    labels for visual contrast
+└── logs/pipeline.log              log file; verbosity honors LOG_LEVEL
+                                   from .env / process env / --log-level
 ```
+
+Per-model color palette lives in `ensemble.visualize.MODEL_COLORS`. The
+combined overlay is written by `write_combined_overlay(...)` and is useful
+for eyeballing which raw model boxes WBF merged vs. dropped.
 
 `run_name` defaults to `YYYYMMDD-HHMMSS_ensemble`. Re-runs do not clobber
 previous artifacts.
@@ -330,6 +385,14 @@ symlinks), a single-line `.repo_root` file with the absolute path of the
 sibling-layout root is honored. The `ENSEMBLE_REPO_ROOT` environment
 variable is honored as a last fallback. `.repo_root` is gitignored.
 
+### `.env` file
+A project-local `.env` at the repo root is read at import time by
+`ensemble/config.py::_read_env_file`. The only key the pipeline currently
+reads is `LOG_LEVEL` (default file: `LOG_LEVEL=DEBUG`). Resolution order
+for the effective log level is: process env `LOG_LEVEL` → `.env` value →
+`--log-level` flag → `INFO`. The parser is a tiny inline `KEY=VALUE` reader
+to avoid a hard dependency on `python-dotenv`. `.env` is gitignored.
+
 ## 12. Validations Performed
 
 - Adapter smoke: each adapter loads weights, runs inference on a 2-image
@@ -354,14 +417,28 @@ cd DEIMv2     && python train.py -c deimv2_hgnetv2_pico_coco.yml --test-only -r 
 
 ## 13. Threshold Semantics
 
-Two thresholds, not to be conflated:
+Three thresholds, not to be conflated:
 
-- Inference / predict threshold (default 0.001) — applied per model during
-  `infer_batch`. Kept tiny so the full PR curve survives for mAP. Same
-  value used by `RFDETR/main.py` (`PREDICT_THRESHOLD`) and `YOLO_model/main.py`
-  (`conf=0.001`).
-- WBF `skip_box_thr` (default 0.0001) — applied inside
-  `weighted_boxes_fusion(...)` only. Independent of inference threshold.
+- **Inference / predict threshold** (`--predict-threshold`, default `0.001`)
+  — applied per model during `infer_batch`. Kept tiny so the full PR curve
+  survives for mAP. Same value used by `RFDETR/main.py`
+  (`PREDICT_THRESHOLD`) and `YOLO_model/main.py` (`conf=0.001`).
+- **WBF `skip_box_thr`** (`--wbf-skip-box`, default `0.25`) — applied
+  inside `weighted_boxes_fusion(...)` only. Filters per-model boxes
+  *before* fusion. Independent of the inference threshold.
+- **YOLO NMS IoU** (`--yolo-iou`, default `0.99`) — Ultralytics' `iou` arg
+  for NMS. **The semantics are inverted from intuition:** it is the IoU
+  *above which* a same-class box is suppressed. So `0.99` ≈ no
+  suppression (almost everything survives); `0.01` ≈ very aggressive
+  suppression (almost nothing survives). We default high because WBF is
+  the dedup step we trust; YOLO's NMS would just remove candidates that
+  WBF would have merged. Override with `--yolo-iou 0.7` to reproduce
+  `YOLO_model/main.py`'s native eval conditions.
+
+There is also a fusion IoU (`--wbf-iou`, default `0.7`) which is the
+threshold used by `weighted_boxes_fusion` to decide which per-model boxes
+cluster together for averaging. Higher = boxes need to overlap more to be
+fused; lower = looser fusion.
 
 ## 14. Operational Notes
 
@@ -374,8 +451,21 @@ Two thresholds, not to be conflated:
   stronger model use, e.g., `--weights 2 1 1`. To experiment with looser
   fusion try `--wbf-iou 0.6`. To filter pre-fusion noise use
   `--wbf-skip-box 0.05`.
+- YOLO standalone vs. ensemble tradeoff: with `--yolo-iou 0.99`, YOLO's
+  standalone CSV row will under-report relative to its native
+  `YOLO_model/main.py` eval because pycocotools' greedy match labels the
+  surviving near-duplicate boxes as FPs. The ENSEMBLE row benefits
+  because WBF re-merges those duplicates. If a side-by-side YOLO row vs.
+  `metrics.json` comparison is needed, either rerun with
+  `--yolo-iou 0.7`, or run YOLO twice (once at 0.7 for the standalone
+  row, once at 0.99 for the WBF feed) — the pipeline does NOT currently
+  do the double-run.
 - Skip a model on the fly: `python main.py --skip-models yolo` produces
   a two-model ensemble (RFDETR + DEIMv2).
+- Verbose diagnostics: set `LOG_LEVEL=DEBUG` in `.env` (or pass
+  `--log-level DEBUG`) to see per-adapter sample detections, batch
+  detection counts, score distributions, and the COCO manifest summary
+  emitted by `ensemble/data.py::load_coco`.
 
 ## 15. Anti-patterns
 
@@ -429,3 +519,27 @@ Two thresholds, not to be conflated:
   that `boxes_list` is a list of N lists (one per model) and that each
   inner list contains 4-float boxes in `[0, 1]`. Empty per-model lists
   are fine; mixed shapes are not.
+- Recall in `summary.csv` looks suspiciously round (multiples of 0.01) →
+  you are on an older revision of `ensemble/metrics.py` that used the
+  precision-matrix shortcut (`coco_eval.eval['precision'][T,R,K,A,M]`).
+  The current implementation walks `coco_eval.evalImgs` and returns
+  continuous floats; if the Recall column shows e.g. exactly `0.8700`,
+  re-pull and look for `_precision_recall_at_best_f1` referencing
+  `evalImgs` (not `recThrs`).
+- YOLO standalone Precision / Recall / mAP50 collapse vs. the previous
+  run → expected if `--yolo-iou` was raised. With `iou=0.99` Ultralytics
+  emits up to 300 near-duplicate boxes per image; pycocotools' greedy
+  match marks all duplicates after the first as FPs, dragging the F1‑max
+  operating point to a lower-recall region. The ENSEMBLE row should NOT
+  collapse — if it does, WBF is not merging (verify `--wbf-iou` is not
+  too high and that `wbf_skip_box_thr` is sane).
+- DEIMv2 throws `RuntimeError: selected index k out of range` at first
+  inference → `PostProcessor.num_top_queries` was raised above
+  `DEIMTransformer.num_queries × num_classes`. Lower it to ≤ that
+  product. For the polyp checkpoint that means ≤ `200 × 1 = 200`.
+- No `[DEBUG]` lines in `logs/pipeline.log` despite `.env` setting
+  `LOG_LEVEL=DEBUG` → the parser only honors the `KEY=VALUE` form. Check
+  there's no leading whitespace, no surrounding quotes (or use matched
+  quotes), and that the file is at the project root (next to `main.py`).
+  The process env `LOG_LEVEL` takes precedence over the file — if it's
+  set to something higher, `.env` won't win.
