@@ -23,7 +23,10 @@ pretrained_weights/
 # Local agent/runtime artifacts.
 .codex
 .work_trees/
-.claude*
+
+# Track shared Claude project config (.claude/rules) but keep the per-machine
+# permissions file local.
+.claude/settings.local.json
 
 # Worktree-only pointer file. Helps locate upstream repos when this branch
 # is checked out as a git worktree (filesystem may forbid symlinks). Not
