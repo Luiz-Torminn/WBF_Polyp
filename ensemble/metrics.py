@@ -111,7 +111,7 @@ def evaluate(
         for image_id in image_ids
     ]
 
-    map_result = MeanAveragePrecision().update(predictions_list, targets_list).compute()
+    map_result = MeanAveragePrecision(class_agnostic=False).update(predictions_list, targets_list).compute()
     precision_result = Precision().update(predictions_list, targets_list).compute()
     recall_result = Recall().update(predictions_list, targets_list).compute()
 
