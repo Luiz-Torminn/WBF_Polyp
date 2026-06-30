@@ -120,7 +120,7 @@ DEFAULT_YOLO_IOU_THRESHOLD: float = 0.75
 
 DEFAULT_DEVICE: str = "cuda:0"
 DEFAULT_BATCH_SIZE: int = 8
-DEFAULT_VISUALIZATION_COUNT: int = 8
+DEFAULT_VISUALIZATION_COUNT: int = 20
 
 # When True (default) the summary.csv standalone-model rows use the metrics
 # computed from this run's inference. When False they fall back to the
@@ -155,7 +155,12 @@ ENSEMBLE_DISPLAY_NAME: str = "ENSEMBLE"
 # marks a metric that is not reported for that model.
 HARDCODED_METRICS: dict[str, dict[str, str]] = {
     "rfdetr": {"precision": "-", "recall": "-", "map50": "0.911", "map50_95": "0.703"},
-    "yolo": {"precision": "0.892", "recall": "0.876", "map50": "0.920", "map50_95": "0.741"},
+    "yolo": {
+        "precision": "0.892",
+        "recall": "0.876",
+        "map50": "0.920",
+        "map50_95": "0.741",
+    },
     "deimv2": {"precision": "-", "recall": "-", "map50": "0.838", "map50_95": "0.648"},
 }
 

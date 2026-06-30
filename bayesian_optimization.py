@@ -47,20 +47,16 @@ from ensemble.cli import parse_run_config
 from ensemble.config import DEFAULT_DATASET_DIR, RunConfig
 from ensemble.pipeline import run_pipeline
 
-# --- Defaults ---------------------------------------------------------------
-# The DB URL targets the host-mapped port from docker-compose.yml. The
-# dashboard container reaches the same DB over the docker network (5432); the
 # host script must use the published port (5434).
 DEFAULT_STORAGE = "postgresql+psycopg2://postgres:postgres@localhost:5434/optuna_db"
 DEFAULT_STUDY_NAME = "ensemble_wbf"
 DEFAULT_N_TRIALS = 50
 DEFAULT_SEED = 42
+
 # Sibling of the test split shipped in config.py; keeps tuning off the test set.
 DEFAULT_DATASET = DEFAULT_DATASET_DIR.parent / "valid"
 BEST_CONFIG_PATH = Path("configs/optuna_best.yaml")
 
-# Frozen: the pipeline keeps this tiny on purpose so the full precision/recall
-# curve is available for mAP integration (see ensemble/config.py).
 FROZEN_PREDICT_THRESHOLD = 0.001
 
 
@@ -75,7 +71,7 @@ def build_objective(base_run: RunConfig, study_name: str):
 
     def objective(trial: optuna.Trial) -> float:
         wbf_iou = trial.suggest_float("wbf_iou", 0.01, 0.90)
-        wbf_skip_box = trial.suggest_float("wbf_skip_box", 0.01, 0.90, log=True)
+        # wbf_skip_box = trial.suggest_float("wbf_skip_box", 0.01, 0.90, log=True)
         yolo_iou = trial.suggest_float("yolo_iou", 0.30, 0.99)
         weights = (
             trial.suggest_float("weight_rfdetr", 0.1, 3.0),
@@ -87,7 +83,7 @@ def build_objective(base_run: RunConfig, study_name: str):
             base_run,
             predict_threshold=FROZEN_PREDICT_THRESHOLD,
             wbf_iou=wbf_iou,
-            wbf_skip_box_thr=wbf_skip_box,
+            wbf_skip_box_thr=0.5,
             yolo_iou_threshold=yolo_iou,
             wbf_weights=weights,
             save_visualizations=False,
@@ -116,7 +112,7 @@ def _write_best_config(study: optuna.Study, path: Path) -> None:
     best = {
         "predict_threshold": FROZEN_PREDICT_THRESHOLD,
         "wbf_iou": p["wbf_iou"],
-        "wbf_skip_box": p["wbf_skip_box"],
+        # "wbf_skip_box": p["wbf_skip_box"],
         "yolo_iou": p["yolo_iou"],
         "weights": [p["weight_rfdetr"], p["weight_yolo"], p["weight_deimv2"]],
     }
@@ -141,12 +137,15 @@ def _serve_dashboard(storage: str, port: int) -> None:
     try:
         from optuna_dashboard import run_server
     except ImportError:
-        print("optuna-dashboard not installed; skipping run_server "
-              "(the compose container still serves http://localhost:8080).")
+        print(
+            "optuna-dashboard not installed; skipping run_server "
+            "(the compose container still serves http://localhost:8080)."
+        )
         return
     try:
-        print(f"Serving optuna-dashboard at http://localhost:{port} "
-              "(Ctrl-C to stop)...")
+        print(
+            f"Serving optuna-dashboard at http://localhost:{port} (Ctrl-C to stop)..."
+        )
         run_server(storage, port=port)
     except (OSError, KeyboardInterrupt) as exc:
         print(f"run_server stopped: {exc}")
@@ -158,23 +157,46 @@ def build_parser() -> argparse.ArgumentParser:
         description="Optuna TPE search over ensemble WBF/inference params, "
         "maximizing ENSEMBLE mAP@50-95.",
     )
-    parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET,
-                        help=f"Split to optimize on (default {DEFAULT_DATASET}).")
-    parser.add_argument("--config", type=str, default=None,
-                        help="Optional base YAML config (searched params are "
-                        "overridden per trial regardless).")
-    parser.add_argument("--n-trials", type=int, default=DEFAULT_N_TRIALS,
-                        help=f"Number of trials (default {DEFAULT_N_TRIALS}).")
-    parser.add_argument("--timeout", type=float, default=None,
-                        help="Optional wall-clock limit in seconds.")
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=DEFAULT_DATASET,
+        help=f"Split to optimize on (default {DEFAULT_DATASET}).",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Optional base YAML config (searched params are "
+        "overridden per trial regardless).",
+    )
+    parser.add_argument(
+        "--n-trials",
+        type=int,
+        default=DEFAULT_N_TRIALS,
+        help=f"Number of trials (default {DEFAULT_N_TRIALS}).",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Optional wall-clock limit in seconds.",
+    )
     parser.add_argument("--study-name", type=str, default=DEFAULT_STUDY_NAME)
     parser.add_argument("--storage", type=str, default=DEFAULT_STORAGE)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--serve-port", type=int, default=8081,
-                        help="Port for the script's own dashboard (default "
-                        "8081; the compose container owns 8080).")
-    parser.add_argument("--no-serve", action="store_true",
-                        help="Do not launch run_server after the study.")
+    parser.add_argument(
+        "--serve-port",
+        type=int,
+        default=8081,
+        help="Port for the script's own dashboard (default "
+        "8081; the compose container owns 8080).",
+    )
+    parser.add_argument(
+        "--no-serve",
+        action="store_true",
+        help="Do not launch run_server after the study.",
+    )
     return parser
 
 

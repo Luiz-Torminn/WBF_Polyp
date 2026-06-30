@@ -16,4 +16,7 @@
 
 [  ] Add conf_type="box_and_model_avg" in `ensemble/fusion.py:weighted_boxes_fusion()`
 
-[  ] Grid search para encontrar os melhores valores para os parametros nos diferentes perfis
+[ OK ] Grid search para encontrar os melhores valores para os parametros nos diferentes perfis --> Bayesian optization(?)
+
+[  ] Utilizar optuna para conseguir combinacao de parametros mais adequadas para cada modelo e perfil de deteccao (mais conservador ou mais agressivo) --> Criar um script para rodar o optuna e salvar os resultados em um arquivo .csv para analise posterior
+
