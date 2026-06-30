@@ -43,3 +43,6 @@ dist/
 
 # Local docs scratch (mkdocs builds, etc.).
 docs/
+
+# Legacy pycocotools-based evaluator, kept for reference only (Rule: ignored).
+ensemble/metrics_old.py
