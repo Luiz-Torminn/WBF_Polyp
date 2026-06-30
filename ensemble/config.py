@@ -138,12 +138,18 @@ DEFAULT_LOG_LEVEL: str = _resolve_log_level()
 class ModelSpec:
     key: str  # filesystem/CLI safe (e.g. 'rfdetr')
     display_name: str  # CSV-facing label (e.g. 'RFDETR nano')
+    # Each model's native inference default confidence, used as the fixed,
+    # config-independent operating point for its standalone baseline metrics
+    # (so the baseline does not move when the ensemble's WBF threshold is
+    # tuned). Sourced from each library's default: RFDETR `predict(threshold=0.5)`,
+    # Ultralytics `predict` conf 0.25, DEIMv2 `torch_inf.py` draw `thrh=0.45`.
+    default_conf: float
 
 
 MODEL_SPECS: tuple[ModelSpec, ...] = (
-    ModelSpec(key="rfdetr", display_name="RFDETR nano"),
-    ModelSpec(key="yolo", display_name="YOLOv12 nano"),
-    ModelSpec(key="deimv2", display_name="DEIMv2 pico"),
+    ModelSpec(key="rfdetr", display_name="RFDETR nano", default_conf=0.5),
+    ModelSpec(key="yolo", display_name="YOLOv12 nano", default_conf=0.25),
+    ModelSpec(key="deimv2", display_name="DEIMv2 pico", default_conf=0.45),
 )
 
 ENSEMBLE_DISPLAY_NAME: str = "ENSEMBLE"
