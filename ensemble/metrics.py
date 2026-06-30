@@ -56,9 +56,9 @@ def _empty_detections() -> sv.Detections:
     contrast, need no confidence, so ``bundle.targets`` may use the stock empty.
     """
     return sv.Detections(
-        xyxy=np.zeros((0, 4), dtype=float),
-        confidence=np.zeros((0,), dtype=float),
-        class_id=np.zeros((0,), dtype=int),
+        xyxy=np.zeros((0, 4), dtype=np.float32),
+        confidence=np.zeros((0,), dtype=np.float32),
+        class_id=np.zeros((0,), dtype=np.int64),
     )
 
 
