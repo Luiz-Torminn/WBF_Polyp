@@ -259,7 +259,9 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
         write_coco_results_json(coco_results, coco_path)
         logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
 
-        metrics = evaluate(predictions, bundle)
+        # Standalone baseline at the model's fixed default operating point, so
+        # it stays comparable to the ensemble row and independent of WBF tuning.
+        metrics = evaluate(predictions, bundle, score_threshold=spec.default_conf)
         logger.info(
             "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
             spec.display_name,
@@ -360,7 +362,10 @@ def _run_ensemble(
         "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
     )
 
-    ensemble_metrics = evaluate(ensemble_predictions, bundle)
+    # Ensemble predictions are already filtered inside WBF at wbf_skip_box_thr,
+    # so no further threshold is applied here — the ensemble row reflects the
+    # configured fusion threshold.
+    ensemble_metrics = evaluate(ensemble_predictions, bundle, score_threshold=0.0)
     logger.info(
         "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
         ENSEMBLE_DISPLAY_NAME,
