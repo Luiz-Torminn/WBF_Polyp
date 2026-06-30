@@ -239,9 +239,11 @@ Shipped profiles:
 
 - **`example_config.yaml`** — fully-commented reference of every key/default.
 - **`aggressive.yaml`** — loose NMS + low WBF thresholds → more detections.
-- **`conservative.yaml` / `optuna_best.yaml`** — Optuna-tuned winners
-  (auto-generated; see below). These set `dynamic_metrics: false` so the
-  standalone rows show the published reference numbers.
+- **`conservative.yaml` / `optuna_best.yaml`** — Optuna-tuned winners. The
+  search writes the tuned `predict_threshold`, `wbf_iou`, `yolo_iou`, and
+  `weights` to `configs/optuna_best.yaml` (see below); the committed profiles
+  additionally set `dynamic_metrics: false` by hand so the standalone rows show
+  the published reference numbers.
 
 ---
 

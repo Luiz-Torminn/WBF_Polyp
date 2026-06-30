@@ -24,9 +24,10 @@ pretrained_weights/
 .codex
 .work_trees/
 
-# Track shared Claude project config (.claude/rules) but keep the per-machine
-# permissions file local.
-.claude/settings.local.json
+# Ignore local/per-machine Claude state (settings.local.json, etc.) but track
+# the shared project rules under .claude/rules.
+.claude/*
+!.claude/rules/
 
 # Worktree-only pointer file. Helps locate upstream repos when this branch
 # is checked out as a git worktree (filesystem may forbid symlinks). Not
