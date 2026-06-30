@@ -74,15 +74,15 @@ def _prediction_to_detections(
     if prediction is None or len(prediction) == 0:
         return _empty_detections()
 
-    scores = np.asarray(prediction.scores, dtype=float)
+    scores = np.asarray(prediction.scores, dtype=np.float32)
     keep = scores >= score_threshold
     if not keep.any():
         return _empty_detections()
 
     return sv.Detections(
-        xyxy=np.asarray(prediction.xyxy, dtype=float)[keep],
+        xyxy=np.asarray(prediction.xyxy, dtype=np.float32)[keep],
         confidence=scores[keep],
-        class_id=np.asarray(prediction.class_ids, dtype=int)[keep],
+        class_id=np.asarray(prediction.class_ids, dtype=np.int64)[keep],
     )
 
 
