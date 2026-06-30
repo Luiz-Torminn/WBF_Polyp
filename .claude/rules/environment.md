@@ -21,12 +21,8 @@ Follow existing and upcoming guardrails such as lint rules, formatting rules, an
 ### Rule 52 — Use the `ensemble-method` Conda Environment
 
 On Linux, the environment for running the pipeline and prompting/executing the
-test suite is the conda environment named `ensemble-method`. On this machine it
-lives at:
-
-```txt
-/home/luizlima/miniconda3/envs/ensemble-method
-```
+On Linux, the environment for running the pipeline and prompting/executing the
+test suite is the conda environment (typically located under your miniconda/anaconda installation, e.g., `~/miniconda3/envs/ensemble-method`).
 
 Activate it by name (location-independent) before running or testing; the full
 path is only needed if `conda` cannot resolve the name:
