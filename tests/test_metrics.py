@@ -101,6 +101,53 @@ def test_evaluate_empty_gt_image_clamps_sentinel_to_zero():
     assert result.recall >= 0.0
 
 
+# --- fixed-confidence operating point for Precision/Recall (AC1-AC7) ---------
+
+
+def test_low_confidence_fp_excluded_from_precision():
+    # AC1/AC5: TP@0.9 (match) + far FP@0.3 (<0.5). The FP is dropped from P/R,
+    # so precision is 1.0 — but mAP still sees the FP from the full set.
+    bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
+    preds = {1: _pred(1, [[0, 0, 10, 10], [100, 100, 110, 110]], [0.9, 0.3], [0, 0])}
+    result = evaluate(preds, bundle)
+    assert result.precision == 1.0
+    assert result.recall == 1.0
+
+
+def test_box_exactly_at_threshold_is_kept():
+    # AC1: `>=` semantics — a far FP exactly at 0.5 is retained → precision 0.5.
+    bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
+    preds = {1: _pred(1, [[0, 0, 10, 10], [100, 100, 110, 110]], [0.9, 0.5], [0, 0])}
+    result = evaluate(preds, bundle)
+    assert result.precision == 0.5
+
+
+def test_low_confidence_tp_excluded_from_recall_but_not_map():
+    # AC6/AC2: the ONLY prediction is a matching TP@0.3 (<0.5). It is filtered
+    # out of Recall (recall 0.0) yet still counts toward mAP (full set), so
+    # map50 stays high. This proves P/R and mAP use different prediction sets.
+    bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
+    preds = {1: _pred(1, [[0, 0, 10, 10]], [0.3], [0])}
+    result = evaluate(preds, bundle)
+    assert result.recall == 0.0
+    assert result.precision == 0.0
+    assert result.map50 > 0.9
+
+
+def test_threshold_override_includes_low_confidence_detections():
+    # AC3: lowering the operating point to 0.0 restores the pre-filter behavior
+    # (the FP@0.3 is counted again → precision 0.5), proving the knob works.
+    bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
+    preds = {1: _pred(1, [[0, 0, 10, 10], [100, 100, 110, 110]], [0.9, 0.3], [0, 0])}
+    result = evaluate(preds, bundle, pr_confidence_threshold=0.0)
+    assert result.precision == 0.5
+
+
+def test_default_operating_point_is_half():
+    # AC3: the module constant documents the fixed 0.5 operating point.
+    assert metrics_module.PR_CONFIDENCE_THRESHOLD == 0.5
+
+
 def test_metrics_module_uses_supervision_not_pycocotools():
     source = inspect.getsource(metrics_module)
     assert "import supervision" in source
