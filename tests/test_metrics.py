@@ -66,6 +66,16 @@ def test_evaluate_partial_match_one_tp_one_fp_one_fn():
     assert 0.4 < result.map50 < 0.6
 
 
+def test_evaluate_precision_and_recall_are_not_swapped():
+    # 1 TP + 1 far FP, 0 FN => precision 0.5, recall 1.0 (asymmetric, so a
+    # precision/recall swap in evaluate() would be caught).
+    bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
+    preds = {1: _pred(1, [[0, 0, 10, 10], [100, 100, 110, 110]], [0.9, 0.5], [0, 0])}
+    result = evaluate(preds, bundle)
+    assert result.precision == 0.5
+    assert result.recall == 1.0
+
+
 def test_evaluate_empty_predictions_is_all_zeros():
     bundle = _StubBundle({1: _target([[0, 0, 10, 10]], [0])})
     result = evaluate({}, bundle)
@@ -129,3 +139,86 @@ def test_instantiate_adapter_without_overrides_uses_config():
     run = parse_run_config([])
     adapter = _instantiate_adapter("yolo", run)
     assert adapter._iou_threshold == run.yolo_iou_threshold
+
+
+# --- dynamic_metrics gating of the second (validation-default) pass ----------
+
+
+class _FakeAdapter:
+    name = "fake"
+
+    def load(self, device):
+        pass
+
+    def unload(self):
+        pass
+
+    def infer_batch(self, batch):
+        return []
+
+
+def _patch_pipeline(monkeypatch, calls):
+    """Stub run_pipeline's heavy collaborators; record _instantiate_adapter calls."""
+    import ensemble.pipeline as pl
+    from types import SimpleNamespace
+
+    from ensemble.metrics import EvalResult
+
+    fake_bundle = SimpleNamespace(image_records=[], raw={}, num_classes=1)
+    monkeypatch.setattr(pl, "load_coco", lambda *a, **k: fake_bundle)
+    monkeypatch.setattr(pl, "_setup_logging", lambda run: run.run_dir / "log.txt")
+    monkeypatch.setattr(pl, "_serialize_run_config", lambda *a, **k: None)
+    monkeypatch.setattr(
+        pl, "_write_parameter_values", lambda run: run.run_dir / "PARAMETER_VALUES.txt"
+    )
+    monkeypatch.setattr(
+        pl, "_write_summary_csv", lambda **k: k["run"].run_dir / "summary.csv"
+    )
+    monkeypatch.setattr(pl, "_write_visualizations", lambda **k: None)
+    monkeypatch.setattr(
+        pl, "_run_ensemble", lambda **k: (EvalResult(0.0, 0.0, 0.0, 0.0), {})
+    )
+    monkeypatch.setattr(pl, "_run_inference", lambda *a, **k: {})
+    monkeypatch.setattr(pl, "evaluate", lambda *a, **k: EvalResult(0.0, 0.0, 0.0, 0.0))
+
+    def fake_instantiate(model_key, run, overrides=None):
+        calls.append((model_key, overrides))
+        return _FakeAdapter()
+
+    monkeypatch.setattr(pl, "_instantiate_adapter", fake_instantiate)
+
+
+def test_dynamic_metrics_true_runs_second_validation_pass(tmp_path, monkeypatch):
+    from ensemble.config import MODEL_SPECS
+    from ensemble.pipeline import run_pipeline
+
+    calls: list = []
+    _patch_pipeline(monkeypatch, calls)
+    run = parse_run_config(
+        ["--output-dir", str(tmp_path), "--dynamic-metrics", "true"]
+    )
+    run.run_dir.mkdir(parents=True, exist_ok=True)
+    run_pipeline(run)
+
+    # One config pass (overrides=None) + one baseline pass (VALIDATION_DEFAULTS) per model.
+    assert len(calls) == 2 * len(MODEL_SPECS)
+    for spec in MODEL_SPECS:
+        assert (spec.key, None) in calls
+        assert (spec.key, VALIDATION_DEFAULTS[spec.key]) in calls
+
+
+def test_dynamic_metrics_false_skips_second_validation_pass(tmp_path, monkeypatch):
+    from ensemble.config import MODEL_SPECS
+    from ensemble.pipeline import run_pipeline
+
+    calls: list = []
+    _patch_pipeline(monkeypatch, calls)
+    run = parse_run_config(
+        ["--output-dir", str(tmp_path), "--dynamic-metrics", "false"]
+    )
+    run.run_dir.mkdir(parents=True, exist_ok=True)
+    run_pipeline(run)
+
+    # Config pass only — the validation-default second pass must NOT run.
+    assert len(calls) == len(MODEL_SPECS)
+    assert all(overrides is None for _, overrides in calls)

@@ -1,9 +1,9 @@
 """End-to-end orchestration: load → infer → fuse → evaluate → write artifacts.
 
 The pipeline loads one model at a time, runs inference for the whole test
-split, writes that model's COCO results JSON, evaluates it with the unified
-evaluator, and unloads it. This serialization keeps total VRAM use bounded
-by the largest of the three models (RTX 5080, 16 GB).
+split, evaluates it with the unified supervision evaluator, and unloads it.
+This serialization keeps total VRAM use bounded by the largest of the three
+models (RTX 5080, 16 GB).
 """
 
 from __future__ import annotations
