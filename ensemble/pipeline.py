@@ -362,10 +362,24 @@ def _run_ensemble(
         "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
     )
 
-    # Ensemble predictions are already filtered inside WBF at wbf_skip_box_thr,
-    # so no further threshold is applied here — the ensemble row reflects the
-    # configured fusion threshold.
-    ensemble_metrics = evaluate(ensemble_predictions, bundle, score_threshold=0.0)
+    # WBF's skip_box_thr only filters fusion *inputs*; with conf_type='avg' the
+    # fused score of a single-model box is rescaled far below it, so the fused
+    # set still contains low-confidence boxes. Evaluating them at 0.0 would count
+    # every such box as a prediction and crater Precision (a fair operating-point
+    # metric). So Precision/Recall are taken at the fusion operating point
+    # (wbf_skip_box_thr) to stay comparable to the standalone rows, while mAP is
+    # kept over the full PR curve (0.0) — that is the value the Optuna objective
+    # maximizes and it must not be truncated.
+    map_metrics = evaluate(ensemble_predictions, bundle, score_threshold=0.0)
+    pr_metrics = evaluate(
+        ensemble_predictions, bundle, score_threshold=run.wbf_skip_box_thr
+    )
+    ensemble_metrics = EvalResult(
+        precision=pr_metrics.precision,
+        recall=pr_metrics.recall,
+        map50=map_metrics.map50,
+        map50_95=map_metrics.map50_95,
+    )
     logger.info(
         "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
         ENSEMBLE_DISPLAY_NAME,

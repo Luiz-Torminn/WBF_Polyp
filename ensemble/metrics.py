@@ -8,13 +8,18 @@ mAP@[0.50:0.95] with the ``supervision`` metrics (replacing the previous
 ``pycocotools`` evaluator, kept for reference in the gitignored
 ``metrics_old.py``).
 
-All four numbers are computed at a single operating point: the predictions are
-filtered to ``score >= score_threshold`` and every metric is derived from that
-same filtered set. Standalone models pass their config-independent per-model
-``default_conf`` so each model's baseline stays fixed regardless of ensemble
-tuning; the ensemble passes ``0.0`` because its predictions are already filtered
-inside Weighted Boxes Fusion at ``wbf_skip_box_thr`` — so the ensemble row
-reflects the configured fusion threshold.
+Each :func:`evaluate` call computes all four numbers at a single operating
+point: the predictions are filtered to ``score >= score_threshold`` and every
+metric is derived from that same filtered set. Standalone models pass their
+config-independent per-model ``default_conf`` so each model's baseline stays
+fixed regardless of ensemble tuning. The ensemble is evaluated *twice* by the
+pipeline (see :func:`ensemble.pipeline._run_ensemble`): Precision/Recall at
+``wbf_skip_box_thr`` so they sit at a fair operating point comparable to the
+standalone rows, and mAP at ``0.0`` so the full PR curve survives for the Optuna
+objective. WBF's ``skip_box_thr`` only filters fusion *inputs*; with the default
+``conf_type='avg'`` the fused output score of a single-model box is rescaled far
+below it, so those low-confidence boxes remain in the fused set and must be
+thresholded here rather than relied upon to be pre-filtered.
 
 Precision/Recall use Supervision's defaults (``AveragingMethod.WEIGHTED``) and
 the scalar is taken at IoU=0.50 (``precision_at_50`` / ``recall_at_50``). mAP is
