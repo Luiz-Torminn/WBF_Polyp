@@ -95,3 +95,25 @@ c79ddf8 docs(specs): supervision-metrics spec, design, tasks, decisions
 
 No other gaps found. All committed changes are surgical and traceable to the
 spec's requirements (R1-R13); no scope creep detected in the diff range.
+
+## 6. Gap resolution (post-verification)
+
+All three ranked gaps were closed in commit `a2ac337` and the follow-up:
+
+1. **RESOLVED** — added `test_evaluate_precision_and_recall_are_not_swapped`
+   (1 TP + 1 FP + 0 FN → precision 0.5, recall 1.0). Mutant (b) now killed
+   (re-verified: swapping P/R fails the test).
+2. **RESOLVED** — added `test_dynamic_metrics_true_runs_second_validation_pass`
+   and `test_dynamic_metrics_false_skips_second_validation_pass` driving
+   `run_pipeline` with stubbed collaborators and counting `_instantiate_adapter`
+   calls (6 when enabled, 3 when disabled). Mutant (d) now killed.
+3. **RESOLVED** — pipeline module docstring no longer mentions COCO JSON.
+
+CodeRabbit pass (`--base main_working`): 1 major finding on `evaluate()` image-id
+selection was reviewed and **declined with justification** — `bundle.targets`
+holds an entry for every image in the COCO manifest (empty-GT images included as
+`sv.Detections.empty()`), and predictions are only ever produced over
+`bundle.image_records` (the same manifest), so `set(predictions) ⊆
+set(bundle.targets)` is invariant and no prediction is ever dropped. Iterating
+`bundle.targets` keys is also mandated by spec R4. The two minor findings (a
+`tasks.md` doc pattern and this gap list) were doc-only and fixed.

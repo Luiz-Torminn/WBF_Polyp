@@ -15,7 +15,7 @@ commit per task. Gate = the stated verification passes in the `ensemble-method` 
 - **Commit:** `feat(config): add per-model validation-mode default params`
 
 ## T3 — Pipeline: adapter overrides + gated second pass (R6, R7, R8, AC5)
-- `_instantiate_adapter(model_key, run, overrides=None)`; each kwarg = `overrides.get(...) or run.<field>`. Add YOLO `imgsz` override.
+- `_instantiate_adapter(model_key, run, overrides=None)`; each kwarg = `overrides.get("<kwarg>", run.<field>)` (explicit key default — must NOT use `or`, which would drop a falsy override like DEIMv2 `score_threshold=0.0`). Add YOLO `imgsz` override.
 - Model loop: keep config pass (feeds WBF); when `run.dynamic_metrics`, run a second
   validation-default pass and `evaluate()` it → solo `metrics`; else `EvalResult(0,0,0,0)`.
   (metrics.py still pycocotools here — evaluate signature unchanged.)
