@@ -33,8 +33,6 @@ from ensemble.fusion import fuse_image
 from ensemble.metrics import (
     EvalResult,
     evaluate,
-    predictions_to_coco_results,
-    write_coco_results_json,
 )
 from ensemble.visualize import (
     select_visualization_records,
@@ -50,7 +48,6 @@ class ModelRunResult:
     spec: ModelSpec
     predictions: dict[int, Prediction]
     metrics: EvalResult
-    coco_results_path: Path
 
 
 @dataclass
@@ -265,13 +262,6 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
         finally:
             adapter.unload()
 
-        coco_results = predictions_to_coco_results(
-            predictions, bundle.class_idx_to_cat_id
-        )
-        coco_path = run.predictions_dir / f"predictions_{spec.key}.json"
-        write_coco_results_json(coco_results, coco_path)
-        logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
-
         if run.dynamic_metrics:
             # Standalone baseline: re-run the model at its own validation-mode
             # defaults (config-independent) and score THAT pass, so the solo row
@@ -306,10 +296,9 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
             spec=spec,
             predictions=predictions,
             metrics=metrics,
-            coco_results_path=coco_path,
         )
 
-    ensemble_metrics, ensemble_predictions, ensemble_path = _run_ensemble(
+    ensemble_metrics, ensemble_predictions = _run_ensemble(
         run=run,
         bundle=bundle,
         model_results=model_results,
@@ -341,7 +330,7 @@ def _run_ensemble(
     bundle: CocoBundle,
     model_results: dict[str, ModelRunResult],
     active_specs: list[ModelSpec],
-) -> tuple[EvalResult, dict[int, Prediction], Path]:
+) -> tuple[EvalResult, dict[int, Prediction]]:
     if len(active_specs) < 2:
         logger.warning(
             "Ensemble requested but only %d active model(s); skipping fusion.",
@@ -349,9 +338,7 @@ def _run_ensemble(
         )
         empty_predictions: dict[int, Prediction] = {}
         empty_metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
-        empty_path = run.predictions_dir / "predictions_ensemble.json"
-        write_coco_results_json([], empty_path)
-        return empty_metrics, empty_predictions, empty_path
+        return empty_metrics, empty_predictions
 
     logger.info("=== %s ===", ENSEMBLE_DISPLAY_NAME)
     start = time.perf_counter()
@@ -383,15 +370,6 @@ def _run_ensemble(
             skip_box_thr=run.wbf_skip_box_thr,
         )
 
-    coco_results = predictions_to_coco_results(
-        ensemble_predictions, bundle.class_idx_to_cat_id
-    )
-    ensemble_path = run.predictions_dir / "predictions_ensemble.json"
-    write_coco_results_json(coco_results, ensemble_path)
-    logger.info(
-        "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
-    )
-
     ensemble_metrics = evaluate(ensemble_predictions, bundle)
     logger.info(
         "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
@@ -402,7 +380,7 @@ def _run_ensemble(
         ensemble_metrics.map50_95,
         time.perf_counter() - start,
     )
-    return ensemble_metrics, ensemble_predictions, ensemble_path
+    return ensemble_metrics, ensemble_predictions
 
 
 def _write_summary_csv(

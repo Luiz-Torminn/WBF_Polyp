@@ -34,7 +34,6 @@ directory for cross-checks but do not feed the CSV.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import supervision as sv
@@ -120,38 +119,3 @@ def evaluate(
         map50=_nonneg(map_result.map50),
         map50_95=_nonneg(map_result.map50_95),
     )
-
-
-def predictions_to_coco_results(
-    predictions: dict[int, Prediction],
-    class_idx_to_cat_id: dict[int, int],
-) -> list[dict]:
-    """Convert per-image predictions to a COCO results list."""
-    results: list[dict] = []
-    for image_id, prediction in predictions.items():
-        if len(prediction) == 0:
-            continue
-        for xyxy, score, class_id in zip(
-            prediction.xyxy, prediction.scores, prediction.class_ids
-        ):
-            cat_id = class_idx_to_cat_id.get(int(class_id))
-            if cat_id is None:
-                continue
-            x1, y1, x2, y2 = (float(value) for value in xyxy)
-            results.append(
-                {
-                    "image_id": int(image_id),
-                    "category_id": int(cat_id),
-                    "bbox": [x1, y1, x2 - x1, y2 - y1],
-                    "score": float(score),
-                }
-            )
-    return results
-
-
-def write_coco_results_json(coco_results: list[dict], path: Path) -> None:
-    import json
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(coco_results, handle)
