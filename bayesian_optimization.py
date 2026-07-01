@@ -70,7 +70,7 @@ def build_objective(base_run: RunConfig, study_name: str):
     """
 
     def objective(trial: optuna.Trial) -> float:
-        wbf_iou = trial.suggest_float("wbf_iou", 0.01, 0.90)
+        wbf_iou = trial.suggest_float("wbf_iou", 0.01, 0.99)
         # wbf_skip_box = trial.suggest_float("wbf_skip_box", 0.01, 0.90, log=True)
         yolo_iou = trial.suggest_float("yolo_iou", 0.30, 0.99)
         weights = (
