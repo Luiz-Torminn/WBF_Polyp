@@ -53,9 +53,13 @@ load COCO split ─► for each model: load ─► infer (batched) ─► eval �
 1. **Load** the COCO test split (`_annotations.coco.json` + images).
 2. **Per model**, an adapter normalizes that model's output into a shared
    `Prediction` (pixel-space `xyxy`, `scores`, `class_ids`). Inference runs in
-   batches; predictions are written to `predictions_<model>.json` and scored.
+   batches; the **solo** predictions (each model's native defaults) are written
+   to `predictions_<model>.json` and scored for the standalone rows.
 3. **Fuse** every image's per-model boxes with `weighted_boxes_fusion`
-   (normalized to `[0, 1]`, fused, denormalized back to pixels).
+   (normalized to `[0, 1]`, fused, denormalized back to pixels). The fusion
+   input uses each model's *ensemble* inference params (e.g. the tuned
+   `yolo_iou`), so it is **decoupled** from the solo pass — see
+   [Solo vs ensemble inference](#solo-vs-ensemble-inference).
 4. **Evaluate** the ensemble with the same evaluator and write the summary.
 
 All metrics in `summary.csv` come from one source of truth — pycocotools
@@ -207,7 +211,7 @@ run *before* any inference (with a "did you mean…" hint for typos).
 | `--predict-threshold` | `0.001` | Per-model inference score threshold (keep tiny — see below). |
 | `--wbf-iou` | `0.7` | IoU above which WBF treats boxes as the same object. |
 | `--wbf-skip-box` | `0.5` | Drop boxes below this score *inside* the fusion call. |
-| `--yolo-iou` | `0.75` | Ultralytics NMS IoU for YOLO inference. **High = looser NMS**, more candidates survive into WBF (`0.7` = stock Ultralytics). |
+| `--yolo-iou` | `0.75` | Ultralytics NMS IoU for the **ENSEMBLE's** YOLO fusion-input pass only. **High = looser NMS**, more candidates survive into WBF. The standalone YOLO row always uses the `0.75` default, so solo metrics stay config-invariant. |
 | `--weights` | equal | WBF per-model weights, order: **RFDETR YOLO DEIMv2**. |
 | `--skip-models` | none | Skip standalone model(s) (`rfdetr`/`yolo`/`deimv2`); ensemble needs ≥ 2 active. |
 | `--dynamic-metrics` | `true` | `summary.csv` model rows from this run; `false` = published `HARDCODED_METRICS`. ENSEMBLE row is always live. |
@@ -325,8 +329,10 @@ file drives the run.
 ```
 .outputs/optuna_best_20260616-175520/
 ├── summary.csv               # The headline metrics table
-├── predictions_rfdetr.json   # Per-model COCO-format detections
-├── predictions_yolo.json
+├── predictions_rfdetr.json   # Per-model COCO-format detections (solo)
+├── predictions_yolo.json     # YOLO solo detections (native-default NMS)
+├── predictions_yolo_ensemble.json  # YOLO fusion input (tuned yolo_iou); only
+│                             #   written when it differs from the solo set
 ├── predictions_deimv2.json
 ├── predictions_ensemble.json # Fused detections
 ├── run.json                  # Full machine-readable run snapshot
@@ -354,6 +360,27 @@ ENSEMBLE,0.9328,0.8373,0.8785,0.7066
 When `dynamic_metrics: false`, the standalone rows show published reference
 numbers (`HARDCODED_METRICS`); the ENSEMBLE row is **always** computed from the
 current run.
+
+### Solo vs ensemble inference
+
+The standalone (solo) rows are a **config-invariant baseline**: each model is
+scored at its **native default** inference settings, so the same model produces
+the same solo numbers across every config profile. Only the ENSEMBLE consumes
+the tuned post-processing params.
+
+Concretely, the tuned `yolo_iou` is YOLO's NMS IoU and runs *at inference time*,
+upstream of fusion. To keep it from leaking into the solo YOLO row, YOLO runs
+**two passes** when the tuned value differs from the default:
+
+| | Solo row | Ensemble (fusion input) |
+| --- | --- | --- |
+| YOLO NMS IoU | `0.75` (model default, fixed) | tuned `yolo_iou` from the config |
+| RFDETR / DEIMv2 | single pass — no tuned inference knob, reused for both |
+
+`predict_threshold` stays at `0.001` for the solo pass too, so solo mAP still
+integrates the full precision–recall curve. Models with no divergent param
+(RFDETR, DEIMv2) run a single pass that serves both. During the Optuna search
+the solo pass is skipped entirely (the objective reads only the ENSEMBLE mAP).
 
 **`PARAMETER_VALUES.txt`** records every effective parameter as
 `name = value [source]` where source is `default`/`yaml`/`cli` — so any result

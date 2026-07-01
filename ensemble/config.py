@@ -189,6 +189,11 @@ class RunConfig:
     deimv2_dir: Path
     yolo_iou_threshold: float
     log_level: str
+    # When True, skip the solo inference pass and solo metric evaluation
+    # entirely — only ensemble-relevant work runs. Used by the Optuna search,
+    # whose objective reads the ENSEMBLE mAP only. Solo settings are never
+    # config-driven, so the solo rows stay a config-invariant baseline.
+    skip_solo_metrics: bool = False
     extra: dict = field(default_factory=dict)
 
     @property

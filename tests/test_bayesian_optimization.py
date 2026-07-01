@@ -49,7 +49,9 @@ def test_objective_maps_params_into_runconfig(tmp_path):
 
     run = captured["run"]
     assert run.wbf_iou == 0.5
-    assert run.wbf_skip_box_thr == 0.05
+    # wbf_skip_box is not searched (the suggest is disabled); the objective
+    # freezes wbf_skip_box_thr to 0.5 regardless of any param passed in.
+    assert run.wbf_skip_box_thr == 0.5
     assert run.yolo_iou_threshold == 0.6
     # Weight order must be RFDETR, YOLO, DEIMv2.
     assert run.wbf_weights == (1.5, 2.0, 0.5)
@@ -58,6 +60,8 @@ def test_objective_maps_params_into_runconfig(tmp_path):
     # Visualizations are forced off and a single scratch dir is reused.
     assert run.save_visualizations is False
     assert run.run_name == "optuna/study_x/scratch"
+    # The search path skips solo work — only the ENSEMBLE metric is needed.
+    assert run.skip_solo_metrics is True
 
 
 def test_best_config_yaml_roundtrips_through_loader(tmp_path):
@@ -66,7 +70,6 @@ def test_best_config_yaml_roundtrips_through_loader(tmp_path):
     def dummy(trial):
         for name in ("wbf_iou", "yolo_iou"):
             trial.suggest_float(name, 0.01, 0.99)
-        trial.suggest_float("wbf_skip_box", 0.01, 0.90, log=True)
         for name in ("weight_rfdetr", "weight_yolo", "weight_deimv2"):
             trial.suggest_float(name, 0.1, 3.0)
         return 0.5
@@ -81,6 +84,7 @@ def test_best_config_yaml_roundtrips_through_loader(tmp_path):
     loaded = load_config_file(out)
     assert loaded["predict_threshold"] == 0.001
     assert "wbf_iou" in loaded
-    assert "wbf_skip_box_thr" in loaded
+    # wbf_skip_box is no longer searched, so it is not emitted.
+    assert "wbf_skip_box_thr" not in loaded
     assert "yolo_iou_threshold" in loaded
     assert len(loaded["wbf_weights"]) == 3

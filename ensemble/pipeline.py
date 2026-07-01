@@ -21,6 +21,7 @@ from tqdm.auto import tqdm
 from ensemble.adapters import DEIMv2Adapter, RFDETRAdapter, YOLOAdapter
 from ensemble.adapters.base import Adapter, Prediction
 from ensemble.config import (
+    DEFAULT_YOLO_IOU_THRESHOLD,
     ENSEMBLE_DISPLAY_NAME,
     HARDCODED_METRICS,
     MODEL_SPECS,
@@ -47,9 +48,13 @@ logger = logging.getLogger("ensemble.pipeline")
 @dataclass
 class ModelRunResult:
     spec: ModelSpec
-    predictions: dict[int, Prediction]
-    metrics: EvalResult
-    coco_results_path: Path
+    # Fusion-input predictions (configured/tuned params) — always present.
+    ensemble_predictions: dict[int, Prediction]
+    # Standalone predictions at the model's native defaults; metrics, COCO path
+    # and viz derive from these. ``None`` when ``skip_solo_metrics`` is set.
+    solo_predictions: dict[int, Prediction] | None
+    metrics: EvalResult | None
+    coco_results_path: Path | None
 
 
 @dataclass
@@ -67,7 +72,17 @@ class PipelineResult:
     ensemble_metrics: EvalResult
 
 
-def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
+def _yolo_iou_for_mode(run: RunConfig, mode: str) -> float:
+    """YOLO NMS IoU for the given inference pass.
+
+    The ensemble pass uses the configured/tuned ``yolo_iou`` so it shapes the
+    fusion input; the solo pass always uses the model's native default so the
+    standalone YOLO row stays a config-invariant baseline.
+    """
+    return run.yolo_iou_threshold if mode == "ensemble" else DEFAULT_YOLO_IOU_THRESHOLD
+
+
+def _instantiate_adapter(model_key: str, run: RunConfig, mode: str) -> Adapter:
     if model_key == "rfdetr":
         return RFDETRAdapter(
             weights_path=run.rfdetr_weights,
@@ -77,7 +92,7 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
         return YOLOAdapter(
             weights_path=run.yolo_weights,
             predict_threshold=run.predict_threshold,
-            iou_threshold=run.yolo_iou_threshold,
+            iou_threshold=_yolo_iou_for_mode(run, mode),
             yolo_dir=run.yolo_weights.parent,
         )
     if model_key == "deimv2":
@@ -87,6 +102,20 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
             deimv2_dir=run.deimv2_dir,
             score_threshold=run.predict_threshold,
         )
+    raise ValueError(f"Unknown model key: {model_key!r}")
+
+
+def _inference_signature(model_key: str, run: RunConfig, mode: str) -> tuple:
+    """Inference-affecting params for a model in a given pass.
+
+    The solo and ensemble passes collapse into one when their signatures match —
+    only YOLO's NMS IoU diverges between modes today, so RFDETR/DEIMv2 yield
+    mode-independent signatures and run a single shared pass.
+    """
+    if model_key == "yolo":
+        return (model_key, run.predict_threshold, _yolo_iou_for_mode(run, mode))
+    if model_key in ("rfdetr", "deimv2"):
+        return (model_key, run.predict_threshold)
     raise ValueError(f"Unknown model key: {model_key!r}")
 
 
@@ -102,6 +131,18 @@ def _run_inference(
         for prediction in batch_preds:
             predictions[prediction.image_id] = prediction
     return predictions
+
+
+def _infer_in_mode(
+    model_key: str, run: RunConfig, mode: str, bundle: CocoBundle
+) -> dict[int, Prediction]:
+    """Run one full inference pass for a model in the given mode (solo/ensemble)."""
+    adapter = _instantiate_adapter(model_key, run, mode)
+    adapter.load(run.device)
+    try:
+        return _run_inference(adapter, bundle, run.batch_size)
+    finally:
+        adapter.unload()
 
 
 def _serialize_run_config(
@@ -121,6 +162,7 @@ def _serialize_run_config(
         "yolo_iou_threshold": run.yolo_iou_threshold,
         "log_level": run.log_level,
         "skip_models": list(run.skip_models),
+        "skip_solo_metrics": run.skip_solo_metrics,
         "save_visualizations": run.save_visualizations,
         "dynamic_metrics": run.dynamic_metrics,
         "visualization_count": run.visualization_count,
@@ -245,21 +287,55 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
     for spec in active_specs:
         logger.info("=== %s (%s) ===", spec.display_name, spec.key)
         start = time.perf_counter()
-        adapter = _instantiate_adapter(spec.key, run)
-        adapter.load(run.device)
-        try:
-            predictions = _run_inference(adapter, bundle, run.batch_size)
-        finally:
-            adapter.unload()
+
+        distinct_passes = _inference_signature(
+            spec.key, run, "solo"
+        ) != _inference_signature(spec.key, run, "ensemble")
+
+        # Ensemble pass — always runs; it shapes the WBF fusion input.
+        ensemble_predictions = _infer_in_mode(spec.key, run, "ensemble", bundle)
+
+        if run.skip_solo_metrics:
+            model_results[spec.key] = ModelRunResult(
+                spec=spec,
+                ensemble_predictions=ensemble_predictions,
+                solo_predictions=None,
+                metrics=None,
+                coco_results_path=None,
+            )
+            logger.info(
+                "%s ensemble-input inference done; solo skipped (%.1fs)",
+                spec.display_name,
+                time.perf_counter() - start,
+            )
+            continue
+
+        # Solo pass — native defaults. Reuse the ensemble pass when the two
+        # signatures match (RFDETR/DEIMv2); else run a second inference and
+        # persist the distinct fusion-input set alongside the solo one.
+        if distinct_passes:
+            solo_predictions = _infer_in_mode(spec.key, run, "solo", bundle)
+            ensemble_path = (
+                run.predictions_dir / f"predictions_{spec.key}_ensemble.json"
+            )
+            write_coco_results_json(
+                predictions_to_coco_results(
+                    ensemble_predictions, bundle.class_idx_to_cat_id
+                ),
+                ensemble_path,
+            )
+            logger.info("Wrote ensemble-input detections to %s", ensemble_path)
+        else:
+            solo_predictions = ensemble_predictions
 
         coco_results = predictions_to_coco_results(
-            predictions, bundle.class_idx_to_cat_id
+            solo_predictions, bundle.class_idx_to_cat_id
         )
         coco_path = run.predictions_dir / f"predictions_{spec.key}.json"
         write_coco_results_json(coco_results, coco_path)
         logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
 
-        metrics = evaluate(predictions, bundle)
+        metrics = evaluate(solo_predictions, bundle)
         logger.info(
             "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
             spec.display_name,
@@ -272,7 +348,8 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
 
         model_results[spec.key] = ModelRunResult(
             spec=spec,
-            predictions=predictions,
+            ensemble_predictions=ensemble_predictions,
+            solo_predictions=solo_predictions,
             metrics=metrics,
             coco_results_path=coco_path,
         )
@@ -336,7 +413,7 @@ def _run_ensemble(
     ensemble_predictions: dict[int, Prediction] = {}
     for record in tqdm(bundle.image_records, desc="fuse"):
         per_model = {
-            spec.key: model_results[spec.key].predictions.get(
+            spec.key: model_results[spec.key].ensemble_predictions.get(
                 record.image_id, Prediction.empty(record.image_id)
             )
             for spec in active_specs
@@ -384,7 +461,10 @@ def _write_summary_csv(
     with open(csv_path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Modelo", "Precisão", "Recall", "MAP 50", "MAP 50-95"])
-        for spec in active_specs:
+        # Solo rows are omitted when solo evaluation was skipped (Optuna path);
+        # only the ENSEMBLE row below is written.
+        solo_specs = [] if run.skip_solo_metrics else active_specs
+        for spec in solo_specs:
             if run.dynamic_metrics:
                 metrics = model_results[spec.key].metrics
                 row = [
@@ -433,11 +513,12 @@ def _write_visualizations(
     logger.info("Writing visualizations for %d images", len(records))
     for record in records:
         per_model = {
-            spec.key: model_results[spec.key].predictions.get(
+            spec.key: model_results[spec.key].solo_predictions.get(
                 record.image_id, Prediction.empty(record.image_id)
             )
             for spec in MODEL_SPECS
             if spec.key in model_results
+            and model_results[spec.key].solo_predictions is not None
         }
         per_model["ensemble"] = ensemble_predictions.get(
             record.image_id, Prediction.empty(record.image_id)

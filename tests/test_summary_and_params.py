@@ -31,7 +31,8 @@ def _model_results() -> dict[str, ModelRunResult]:
         )
         results[spec.key] = ModelRunResult(
             spec=spec,
-            predictions={},
+            ensemble_predictions={},
+            solo_predictions={},
             metrics=metrics,
             coco_results_path=Path("unused.json"),
         )

@@ -116,10 +116,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--yolo-iou", type=float, default=_UNSET,
         help=(
-            "IoU threshold for Ultralytics NMS during the ensemble's YOLO "
-            f"inference (default {DEFAULT_YOLO_IOU_THRESHOLD}). High value = "
-            "looser NMS, more candidates survive into WBF. Set to 0.7 to match "
-            "Ultralytics' stock default; lower values are MORE aggressive NMS."
+            "IoU threshold for Ultralytics NMS, applied to the ENSEMBLE's YOLO "
+            "fusion-input pass ONLY "
+            f"(default {DEFAULT_YOLO_IOU_THRESHOLD}). The standalone YOLO row "
+            f"always uses the model default ({DEFAULT_YOLO_IOU_THRESHOLD}) so "
+            "solo metrics stay config-invariant. High value = looser NMS, more "
+            "candidates survive into WBF; lower values are MORE aggressive NMS."
         ),
     )
     parser.add_argument(

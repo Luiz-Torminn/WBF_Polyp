@@ -87,6 +87,10 @@ def build_objective(base_run: RunConfig, study_name: str):
             yolo_iou_threshold=yolo_iou,
             wbf_weights=weights,
             save_visualizations=False,
+            # The objective only reads the ENSEMBLE mAP, so skip the solo
+            # inference pass + solo eval entirely (the solo set is config-
+            # invariant and identical every trial).
+            skip_solo_metrics=True,
             # One reused scratch dir — params/scores live in postgres, so the
             # per-trial artifacts on disk are disposable.
             run_name=f"optuna/{study_name}/scratch",
