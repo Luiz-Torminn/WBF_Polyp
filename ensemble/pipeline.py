@@ -24,6 +24,7 @@ from ensemble.config import (
     ENSEMBLE_DISPLAY_NAME,
     HARDCODED_METRICS,
     MODEL_SPECS,
+    VALIDATION_DEFAULTS,
     ModelSpec,
     RunConfig,
 )
@@ -67,17 +68,29 @@ class PipelineResult:
     ensemble_metrics: EvalResult
 
 
-def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
+def _instantiate_adapter(
+    model_key: str, run: RunConfig, overrides: dict | None = None
+) -> Adapter:
+    """Build an adapter for ``model_key``.
+
+    ``overrides`` (a mapping of adapter-constructor kwargs, e.g.
+    :data:`ensemble.config.VALIDATION_DEFAULTS`) replaces the corresponding
+    config-derived params. With no overrides the adapter uses the run's config
+    values (the ensemble/WBF-feeding pass); with overrides it runs each model at
+    its own validation-mode defaults (the standalone-baseline pass).
+    """
+    overrides = overrides or {}
     if model_key == "rfdetr":
         return RFDETRAdapter(
             weights_path=run.rfdetr_weights,
-            predict_threshold=run.predict_threshold,
+            predict_threshold=overrides.get("predict_threshold", run.predict_threshold),
         )
     if model_key == "yolo":
         return YOLOAdapter(
             weights_path=run.yolo_weights,
-            predict_threshold=run.predict_threshold,
-            iou_threshold=run.yolo_iou_threshold,
+            predict_threshold=overrides.get("predict_threshold", run.predict_threshold),
+            iou_threshold=overrides.get("iou_threshold", run.yolo_iou_threshold),
+            imgsz=overrides.get("imgsz", 640),
             yolo_dir=run.yolo_weights.parent,
         )
     if model_key == "deimv2":
@@ -85,7 +98,7 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
             weights_path=run.deimv2_weights,
             config_path=run.deimv2_config,
             deimv2_dir=run.deimv2_dir,
-            score_threshold=run.predict_threshold,
+            score_threshold=overrides.get("score_threshold", run.predict_threshold),
         )
     raise ValueError(f"Unknown model key: {model_key!r}")
 
@@ -259,7 +272,26 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
         write_coco_results_json(coco_results, coco_path)
         logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
 
-        metrics = evaluate(predictions, bundle)
+        if run.dynamic_metrics:
+            # Standalone baseline: re-run the model at its own validation-mode
+            # defaults (config-independent) and score THAT pass, so the solo row
+            # is an apples-to-apples baseline versus the config/WBF ensemble.
+            # Skipped when dynamic_metrics is off — the CSV then quotes the frozen
+            # HARDCODED_METRICS instead of running this second pass.
+            baseline_adapter = _instantiate_adapter(
+                spec.key, run, VALIDATION_DEFAULTS[spec.key]
+            )
+            baseline_adapter.load(run.device)
+            try:
+                baseline_predictions = _run_inference(
+                    baseline_adapter, bundle, run.batch_size
+                )
+            finally:
+                baseline_adapter.unload()
+            metrics = evaluate(baseline_predictions, bundle)
+        else:
+            metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
+
         logger.info(
             "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
             spec.display_name,
