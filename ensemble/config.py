@@ -219,10 +219,6 @@ class RunConfig:
         return self.output_dir / self.run_name
 
     @property
-    def predictions_dir(self) -> Path:
-        return self.run_dir
-
-    @property
     def visualizations_dir(self) -> Path:
         return self.run_dir / "visualizations"
 
