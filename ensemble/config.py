@@ -165,6 +165,25 @@ HARDCODED_METRICS: dict[str, dict[str, str]] = {
 }
 
 
+# Per-model VALIDATION-mode default inference params — the settings each upstream
+# repo uses to report its published benchmark metrics, so the standalone-model
+# rows in ``summary.csv`` are an apples-to-apples baseline (each model at its own
+# default operating point) against the config/WBF-tuned ENSEMBLE row. Sourced
+# from the upstream entrypoints:
+#   * RFDETR: ``RFDETR/main.py`` ``PREDICT_THRESHOLD = 0.001`` (no NMS/iou knob).
+#   * YOLO:   ``YOLO_model/main.py`` ``model.val(conf=0.001, iou=0.7)`` (imgsz 640).
+#   * DEIMv2: postprocessor keeps the top ``num_top_queries=300`` and
+#             ``engine/solver/det_engine.py`` applies no score threshold → 0.0.
+# Each dict maps directly to the corresponding adapter constructor kwargs; used
+# by the pipeline's second (baseline) inference pass when ``dynamic_metrics`` is
+# enabled.
+VALIDATION_DEFAULTS: dict[str, dict[str, float | int]] = {
+    "rfdetr": {"predict_threshold": 0.001},
+    "yolo": {"predict_threshold": 0.001, "iou_threshold": 0.7, "imgsz": 640},
+    "deimv2": {"score_threshold": 0.0},
+}
+
+
 @dataclass(frozen=True)
 class RunConfig:
     """Resolved runtime configuration for a single pipeline invocation."""
