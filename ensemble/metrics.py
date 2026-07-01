@@ -12,18 +12,27 @@ The metric *calculation* is identical for every row: supervision defaults
 (``MeanAveragePrecision(class_agnostic=False)`` for mAP; ``Precision`` / ``Recall``
 with ``averaging_method=WEIGHTED``, read at IoU=0.50). Only the *predictions*
 differ — standalone rows come from each model's validation-default inference pass,
-the ENSEMBLE row from the config/WBF-fused predictions — so ``evaluate`` takes no
-threshold and applies no score filtering here.
+the ENSEMBLE row from the config/WBF-fused predictions.
+
+Precision/Recall are read at a fixed **confidence operating point**
+(:data:`PR_CONFIDENCE_THRESHOLD`, 0.5): only detections with ``confidence >= 0.5``
+feed the P/R metrics. This replaces the previous "all detections, no operating
+point" behavior, which drove standalone precision toward zero for the DETR models
+(RFDETR/DEIMv2 emit ~300 low-confidence queries per image with no NMS). mAP is
+computed from the FULL, unfiltered prediction set — it needs the low-confidence
+tail for the PR curve — so only P/R are filtered.
 
 Notes:
-  * Supervision's Precision/Recall are the single-point ``TP/(TP+FP)`` /
-    ``TP/(TP+FN)`` at IoU=0.50 over ALL supplied detections — there is no F1-max
-    confidence sweep (a deliberate departure from the old operating point).
+  * Supervision's Precision/Recall have NO confidence-threshold parameter and no
+    default (confidence is used only to sort detections); the operating point is
+    therefore enforced here by filtering the ``sv.Detections`` before ``.update()``.
+  * The threshold uses ``>=`` (a box exactly at 0.5 is kept).
   * Supervision returns ``-1`` for mAP when a class/overall has no ground truth;
     that sentinel is clamped to ``0.0``.
   * Prediction ``sv.Detections`` must carry a ``confidence`` array even when empty
     (the metrics sort by confidence), so empties are built explicitly rather than
-    via ``sv.Detections.empty()``.
+    via ``sv.Detections.empty()``. Confidence filtering preserves this: a mask that
+    removes every box still yields a ``(0,)`` confidence array.
 
 This module is the SINGLE source of truth for the standalone rows in
 ``summary.csv``. The upstream native evaluators (RFDETR ``supervision`` mAP,
@@ -41,6 +50,11 @@ from supervision.metrics import MeanAveragePrecision, Precision, Recall
 
 from ensemble.adapters.base import Prediction
 from ensemble.data import CocoBundle
+
+# Fixed confidence operating point for Precision/Recall. Detections below this
+# score are excluded from P/R (but not from mAP). Supervision exposes no
+# threshold of its own, so this is applied here by filtering the detections.
+PR_CONFIDENCE_THRESHOLD: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -87,14 +101,31 @@ def _nonneg(value: float) -> float:
     return max(0.0, float(value))
 
 
+def _filter_by_confidence(
+    detections: sv.Detections, threshold: float
+) -> sv.Detections:
+    """Keep only detections scoring at or above ``threshold`` (``>=``).
+
+    A mask that removes every box still returns a ``Detections`` with a ``(0,)``
+    ``confidence`` array, which the Supervision metrics require.
+    """
+    if len(detections) == 0:
+        return detections
+    return detections[detections.confidence >= threshold]
+
+
 def evaluate(
     predictions: dict[int, Prediction],
     bundle: CocoBundle,
+    pr_confidence_threshold: float = PR_CONFIDENCE_THRESHOLD,
 ) -> EvalResult:
-    """Compute Precision / Recall / mAP50 / mAP50-95 with supervision defaults.
+    """Compute Precision / Recall / mAP50 / mAP50-95 with supervision.
 
-    All four metrics are computed from ``predictions`` (as given, unfiltered)
-    against ``bundle.targets``, aligned per image over the sorted target keys.
+    mAP is computed from ``predictions`` as given (unfiltered — the full
+    low-confidence tail is needed for the PR curve). Precision and Recall are
+    computed only over detections with ``confidence >= pr_confidence_threshold``
+    (the fixed operating point). All metrics are aligned per image over the
+    sorted target keys.
     """
     image_ids = sorted(bundle.targets.keys())
     if not image_ids:
@@ -104,14 +135,18 @@ def evaluate(
     predictions_list = [
         _prediction_to_detections(predictions.get(image_id)) for image_id in image_ids
     ]
+    pr_predictions_list = [
+        _filter_by_confidence(detections, pr_confidence_threshold)
+        for detections in predictions_list
+    ]
 
     map_result = (
         MeanAveragePrecision(class_agnostic=False)
         .update(predictions_list, targets_list)
         .compute()
     )
-    precision_result = Precision().update(predictions_list, targets_list).compute()
-    recall_result = Recall().update(predictions_list, targets_list).compute()
+    precision_result = Precision().update(pr_predictions_list, targets_list).compute()
+    recall_result = Recall().update(pr_predictions_list, targets_list).compute()
 
     return EvalResult(
         precision=_nonneg(precision_result.precision_at_50),

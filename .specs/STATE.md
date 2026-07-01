@@ -27,6 +27,16 @@
 - **AD-007 — Discarded prior attempt (was worktree HEAD 369c3fe).** Earlier take used
   single-pass score filter, predict-mode default_conf (0.25/0.5/0.45), kept COCO, no
   dynamic gating — superseded by today's grilled decisions. Recoverable via reflog.
+- **AD-008 — Fixed 0.5 confidence operating point for P/R (amends AD-002).**
+  `evaluate()` now computes Precision/Recall only over detections with
+  `confidence >= 0.5` (`ensemble.metrics.PR_CONFIDENCE_THRESHOLD`, `>=` semantics),
+  applied uniformly to solo and ENSEMBLE rows. mAP is unchanged — still computed over
+  the full unfiltered set (needs the low-conf tail). *Why:* AD-002's no-operating-point
+  P/R drove DETR precision toward zero (RFDETR 0.0036, DEIMv2 0.0053) because RFDETR/
+  DEIMv2 emit ~300 NMS-free queries per image at conf≈0.001; a fixed operating point
+  restores an interpretable precision. Supervision has no built-in confidence
+  threshold, so the filter is applied to the `sv.Detections` before `.update()`.
+  Option B (fixed 0.5), user-chosen over Option A (best-F1 sweep) / C (drop columns).
 
 ## Handoff snapshot
 
