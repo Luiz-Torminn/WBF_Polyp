@@ -1,9 +1,9 @@
 """End-to-end orchestration: load → infer → fuse → evaluate → write artifacts.
 
 The pipeline loads one model at a time, runs inference for the whole test
-split, writes that model's COCO results JSON, evaluates it with the unified
-evaluator, and unloads it. This serialization keeps total VRAM use bounded
-by the largest of the three models (RTX 5080, 16 GB).
+split, evaluates it with the unified supervision evaluator, and unloads it.
+This serialization keeps total VRAM use bounded by the largest of the three
+models (RTX 5080, 16 GB).
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from ensemble.config import (
     ENSEMBLE_DISPLAY_NAME,
     HARDCODED_METRICS,
     MODEL_SPECS,
+    VALIDATION_DEFAULTS,
     ModelSpec,
     RunConfig,
 )
@@ -32,8 +33,6 @@ from ensemble.fusion import fuse_image
 from ensemble.metrics import (
     EvalResult,
     evaluate,
-    predictions_to_coco_results,
-    write_coco_results_json,
 )
 from ensemble.visualize import (
     select_visualization_records,
@@ -49,7 +48,6 @@ class ModelRunResult:
     spec: ModelSpec
     predictions: dict[int, Prediction]
     metrics: EvalResult
-    coco_results_path: Path
 
 
 @dataclass
@@ -67,17 +65,29 @@ class PipelineResult:
     ensemble_metrics: EvalResult
 
 
-def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
+def _instantiate_adapter(
+    model_key: str, run: RunConfig, overrides: dict | None = None
+) -> Adapter:
+    """Build an adapter for ``model_key``.
+
+    ``overrides`` (a mapping of adapter-constructor kwargs, e.g.
+    :data:`ensemble.config.VALIDATION_DEFAULTS`) replaces the corresponding
+    config-derived params. With no overrides the adapter uses the run's config
+    values (the ensemble/WBF-feeding pass); with overrides it runs each model at
+    its own validation-mode defaults (the standalone-baseline pass).
+    """
+    overrides = overrides or {}
     if model_key == "rfdetr":
         return RFDETRAdapter(
             weights_path=run.rfdetr_weights,
-            predict_threshold=run.predict_threshold,
+            predict_threshold=overrides.get("predict_threshold", run.predict_threshold),
         )
     if model_key == "yolo":
         return YOLOAdapter(
             weights_path=run.yolo_weights,
-            predict_threshold=run.predict_threshold,
-            iou_threshold=run.yolo_iou_threshold,
+            predict_threshold=overrides.get("predict_threshold", run.predict_threshold),
+            iou_threshold=overrides.get("iou_threshold", run.yolo_iou_threshold),
+            imgsz=overrides.get("imgsz", 640),
             yolo_dir=run.yolo_weights.parent,
         )
     if model_key == "deimv2":
@@ -85,7 +95,7 @@ def _instantiate_adapter(model_key: str, run: RunConfig) -> Adapter:
             weights_path=run.deimv2_weights,
             config_path=run.deimv2_config,
             deimv2_dir=run.deimv2_dir,
-            score_threshold=run.predict_threshold,
+            score_threshold=overrides.get("score_threshold", run.predict_threshold),
         )
     raise ValueError(f"Unknown model key: {model_key!r}")
 
@@ -252,14 +262,26 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
         finally:
             adapter.unload()
 
-        coco_results = predictions_to_coco_results(
-            predictions, bundle.class_idx_to_cat_id
-        )
-        coco_path = run.predictions_dir / f"predictions_{spec.key}.json"
-        write_coco_results_json(coco_results, coco_path)
-        logger.info("Wrote %d COCO detections to %s", len(coco_results), coco_path)
+        if run.dynamic_metrics:
+            # Standalone baseline: re-run the model at its own validation-mode
+            # defaults (config-independent) and score THAT pass, so the solo row
+            # is an apples-to-apples baseline versus the config/WBF ensemble.
+            # Skipped when dynamic_metrics is off — the CSV then quotes the frozen
+            # HARDCODED_METRICS instead of running this second pass.
+            baseline_adapter = _instantiate_adapter(
+                spec.key, run, VALIDATION_DEFAULTS[spec.key]
+            )
+            baseline_adapter.load(run.device)
+            try:
+                baseline_predictions = _run_inference(
+                    baseline_adapter, bundle, run.batch_size
+                )
+            finally:
+                baseline_adapter.unload()
+            metrics = evaluate(baseline_predictions, bundle)
+        else:
+            metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
 
-        metrics = evaluate(predictions, bundle)
         logger.info(
             "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
             spec.display_name,
@@ -274,10 +296,9 @@ def run_pipeline(run: RunConfig) -> PipelineResult:
             spec=spec,
             predictions=predictions,
             metrics=metrics,
-            coco_results_path=coco_path,
         )
 
-    ensemble_metrics, ensemble_predictions, ensemble_path = _run_ensemble(
+    ensemble_metrics, ensemble_predictions = _run_ensemble(
         run=run,
         bundle=bundle,
         model_results=model_results,
@@ -309,7 +330,7 @@ def _run_ensemble(
     bundle: CocoBundle,
     model_results: dict[str, ModelRunResult],
     active_specs: list[ModelSpec],
-) -> tuple[EvalResult, dict[int, Prediction], Path]:
+) -> tuple[EvalResult, dict[int, Prediction]]:
     if len(active_specs) < 2:
         logger.warning(
             "Ensemble requested but only %d active model(s); skipping fusion.",
@@ -317,9 +338,7 @@ def _run_ensemble(
         )
         empty_predictions: dict[int, Prediction] = {}
         empty_metrics = EvalResult(precision=0.0, recall=0.0, map50=0.0, map50_95=0.0)
-        empty_path = run.predictions_dir / "predictions_ensemble.json"
-        write_coco_results_json([], empty_path)
-        return empty_metrics, empty_predictions, empty_path
+        return empty_metrics, empty_predictions
 
     logger.info("=== %s ===", ENSEMBLE_DISPLAY_NAME)
     start = time.perf_counter()
@@ -351,15 +370,6 @@ def _run_ensemble(
             skip_box_thr=run.wbf_skip_box_thr,
         )
 
-    coco_results = predictions_to_coco_results(
-        ensemble_predictions, bundle.class_idx_to_cat_id
-    )
-    ensemble_path = run.predictions_dir / "predictions_ensemble.json"
-    write_coco_results_json(coco_results, ensemble_path)
-    logger.info(
-        "Wrote %d COCO ensemble detections to %s", len(coco_results), ensemble_path
-    )
-
     ensemble_metrics = evaluate(ensemble_predictions, bundle)
     logger.info(
         "%s metrics: P=%.4f R=%.4f mAP50=%.4f mAP50-95=%.4f (%.1fs)",
@@ -370,7 +380,7 @@ def _run_ensemble(
         ensemble_metrics.map50_95,
         time.perf_counter() - start,
     )
-    return ensemble_metrics, ensemble_predictions, ensemble_path
+    return ensemble_metrics, ensemble_predictions
 
 
 def _write_summary_csv(

@@ -43,3 +43,9 @@ dist/
 
 # Local docs scratch (mkdocs builds, etc.).
 docs/
+
+# Reference copy of the pre-supervision pycocotools evaluator (T12/AD-001).
+ensemble/metrics_old.py
+
+# CodeRabbit raw review dumps.
+.specs/**/coderabbit.out

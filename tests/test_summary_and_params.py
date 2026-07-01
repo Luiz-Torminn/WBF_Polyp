@@ -4,7 +4,6 @@ the PARAMETER_VALUES.txt control file."""
 from __future__ import annotations
 
 import csv
-from pathlib import Path
 
 from ensemble.cli import parse_run_config
 from ensemble.config import HARDCODED_METRICS, MODEL_SPECS
@@ -33,7 +32,6 @@ def _model_results() -> dict[str, ModelRunResult]:
             spec=spec,
             predictions={},
             metrics=metrics,
-            coco_results_path=Path("unused.json"),
         )
     return results
 
