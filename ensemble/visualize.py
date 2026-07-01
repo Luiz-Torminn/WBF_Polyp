@@ -27,10 +27,10 @@ from ensemble.data import ImageRecord
 # pops on the combined overlay even when individual-model boxes cluster on
 # top of each other.
 MODEL_COLORS: dict[str, sv.Color] = {
-    "rfdetr": sv.Color(r=30, g=144, b=255),    # dodger blue
-    "yolo": sv.Color(r=0, g=200, b=83),        # green
-    "deimv2": sv.Color(r=255, g=193, b=7),     # amber
-    "ensemble": sv.Color(r=229, g=57, b=53),   # red
+    "rfdetr": sv.Color(r=30, g=144, b=255),  # dodger blue
+    "yolo": sv.Color(r=0, g=200, b=83),  # green
+    "deimv2": sv.Color(r=255, g=193, b=7),  # amber
+    "ensemble": sv.Color(r=229, g=57, b=53),  # red
 }
 
 # Thicker line for the ensemble so it visibly dominates the combined overlay.
@@ -55,18 +55,20 @@ def select_visualization_records(
     return selected
 
 
-def _to_detections(prediction: Prediction, top_k: int) -> sv.Detections:
+def _to_detections(
+    prediction: Prediction, top_k: int, min_confidence: float = 0.5
+) -> sv.Detections:
     if len(prediction) == 0:
         return sv.Detections.empty()
-    if top_k > 0 and len(prediction) > top_k:
-        order = np.argsort(-prediction.scores)[:top_k]
-        xyxy = prediction.xyxy[order]
-        scores = prediction.scores[order]
-        class_ids = prediction.class_ids[order]
-    else:
-        xyxy = prediction.xyxy
-        scores = prediction.scores
-        class_ids = prediction.class_ids
+    keep = prediction.scores >= min_confidence
+    xyxy = prediction.xyxy[keep]
+    scores = prediction.scores[keep]
+    class_ids = prediction.class_ids[keep]
+    if len(scores) == 0:
+        return sv.Detections.empty()
+    if top_k > 0 and len(scores) > top_k:
+        order = np.argsort(-scores)[:top_k]
+        xyxy, scores, class_ids = xyxy[order], scores[order], class_ids[order]
     return sv.Detections(
         xyxy=xyxy.astype(np.float32),
         confidence=scores.astype(np.float32),

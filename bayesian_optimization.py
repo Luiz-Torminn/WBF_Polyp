@@ -55,7 +55,7 @@ DEFAULT_SEED = 42
 
 # Sibling of the test split shipped in config.py; keeps tuning off the test set.
 DEFAULT_DATASET = DEFAULT_DATASET_DIR.parent / "valid"
-BEST_CONFIG_PATH = Path("configs/optuna_best.yaml")
+BEST_CONFIG_PATH = Path("configs/map5095_best.yaml")
 
 FROZEN_PREDICT_THRESHOLD = 0.001
 

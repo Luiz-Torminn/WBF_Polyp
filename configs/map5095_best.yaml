@@ -1,0 +1,13 @@
+# Best ensemble hyperparameters from Optuna study 'ensemble_map5095'.
+# Best ENSEMBLE mAP@50-95 = 0.739450 (trial #42).
+# Reproduce on the test split:
+#   python main.py --config configs/map5095_best.yaml --dataset <.../test>
+# weights order: RFDETR, YOLO, DEIMv2
+predict_threshold: 0.001
+wbf_iou: 0.8093888522745739
+yolo_iou: 0.42556930836323376
+weights:
+  - 2.107675165167831
+  - 2.839831169282044
+  - 2.0111386954545414
+dynamic_metrics: true

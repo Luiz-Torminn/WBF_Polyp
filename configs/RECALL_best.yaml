@@ -1,0 +1,13 @@
+# Best ensemble hyperparameters from Optuna study 'ensemble_recall'.
+# Best ENSEMBLE mAP@50-95 = 0.888498 (trial #31).
+# Reproduce on the test split:
+#   python main.py --config configs/RECALL_best.yaml --dataset <.../test>
+# weights order: RFDETR, YOLO, DEIMv2
+predict_threshold: 0.001
+wbf_iou: 0.39471224575092106
+yolo_iou: 0.9733628455066321
+weights:
+  - 2.310651220895407
+  - 1.886798632949153
+  - 1.9248404539220287
+dynamic_metrics: true
