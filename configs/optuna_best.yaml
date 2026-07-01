@@ -11,4 +11,4 @@ weights:
   - 0.662180692411614
   - 0.9316673940192086
 
-dynamic_metrics: false
+dynamic_metrics: true
